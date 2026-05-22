@@ -12,6 +12,8 @@ const app = express();
 const port = process.env.PORT || 3000;
 const mockMode = process.env.MOCK_MODE !== 'false';
 
+app.set('trust proxy', 1);
+
 app.use(securityHeaders);
 app.use(helmet());
 app.use(cors({ origin: '*' }));
