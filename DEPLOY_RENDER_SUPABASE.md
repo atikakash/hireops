@@ -29,14 +29,20 @@ DATABASE_URL=<your Supabase Postgres connection string>
 MAIL_FROM=noreply@hireops.app
 ```
 
-Optional email variables:
+Brevo SMTP variables for real OTP emails:
 
 ```text
-MAIL_HOST=
-MAIL_PORT=
-MAIL_USER=
-MAIL_PASS=
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_SECURE=false
+MAIL_USER=<your Brevo SMTP login>
+MAIL_PASS=<your Brevo SMTP key>
+MAIL_FROM=<your verified Brevo sender email>
 ```
+
+In Brevo, create or copy these values from **SMTP & API > SMTP**. Use an SMTP key
+for `MAIL_PASS`, not your Brevo account password. The `MAIL_FROM` address must be
+verified in Brevo before OTP emails can reach users.
 
 After deploy, Render will give you a public API URL like:
 
