@@ -58,7 +58,7 @@ app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'HireOps API running',
-    version: '1.0.1',
+    version: '1.0.2',
     mode: mockMode ? 'mock' : 'database',
   });
 });

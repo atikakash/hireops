@@ -7,7 +7,7 @@ if (usePostgres) {
   const { Pool } = require('pg');
 
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: normalizePostgresUrl(process.env.DATABASE_URL),
     host: process.env.DATABASE_URL ? undefined : process.env.DB_HOST,
     port: process.env.DATABASE_URL ? undefined : Number(process.env.DB_PORT || 5432),
     user: process.env.DATABASE_URL ? undefined : process.env.DB_USER,
@@ -39,6 +39,27 @@ if (usePostgres) {
   });
   pool.isPostgres = false;
   module.exports = pool;
+}
+
+function normalizePostgresUrl(connectionString) {
+  if (!connectionString) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    const isSupabasePooler = url.hostname.endsWith('.pooler.supabase.com');
+    const projectRef = process.env.SUPABASE_PROJECT_REF || 'ovspucdlfhwbqdsnkuqg';
+
+    if (isSupabasePooler && url.username === 'postgres') {
+      url.username = `postgres.${projectRef}`;
+      console.warn('[database] normalized Supabase pooler username');
+    }
+
+    return url.toString();
+  } catch (_err) {
+    return connectionString;
+  }
 }
 
 function createPostgresCompatPool(pool) {
