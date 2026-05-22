@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const { auditLog, securityHeaders } = require('./middleware/securityMiddleware');
+const db = require('./config/database');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -60,6 +61,26 @@ app.get('/', (_req, res) => {
     version: '1.0.1',
     mode: mockMode ? 'mock' : 'database',
   });
+});
+
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    await db.query('SELECT 1 AS ok');
+    res.json({
+      success: true,
+      database: 'ok',
+      client: db.isPostgres ? 'postgres' : 'mysql',
+    });
+  } catch (err) {
+    console.error('database health error:', err);
+    res.status(500).json({
+      success: false,
+      database: 'error',
+      client: db.isPostgres ? 'postgres' : 'mysql',
+      code: err.code || null,
+      message: err.message || 'Database connection failed.',
+    });
+  }
 });
 
 function mountIfPresent(routePath, relativeModulePath, middleware = []) {
