@@ -35,6 +35,7 @@ Brevo SMTP variables for real OTP emails:
 MAIL_HOST=smtp-relay.brevo.com
 MAIL_PORT=587
 MAIL_SECURE=false
+MAIL_TIMEOUT_MS=5000
 MAIL_USER=<your Brevo SMTP login>
 MAIL_PASS=<your Brevo SMTP key>
 MAIL_FROM=<your verified Brevo sender email>

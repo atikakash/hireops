@@ -434,8 +434,21 @@ async function logout(req, res) {
 async function issueEmailVerificationOtp({ email, name }) {
   const otp = createOtp();
   saveEmailVerificationOtp(email, otp);
-  const sent = await sendEmailVerificationOtp({ to: email, name, otp });
+  const sent = await withTimeout(
+    sendEmailVerificationOtp({ to: email, name, otp }),
+    Number(process.env.MAIL_TIMEOUT_MS || 5000),
+    false
+  );
   return { sent, debugOtp: sent ? null : otp };
+}
+
+function withTimeout(promise, timeoutMs, fallbackValue) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      setTimeout(() => resolve(fallbackValue), timeoutMs);
+    }),
+  ]);
 }
 
 function createOtp() {

@@ -6,6 +6,9 @@ const transporter = nodemailer.createTransport({
   host:   process.env.MAIL_HOST || 'smtp-relay.brevo.com',
   port:   parseInt(process.env.MAIL_PORT || '587', 10),
   secure: process.env.MAIL_SECURE === 'true',
+  connectionTimeout: Number(process.env.MAIL_TIMEOUT_MS || 5000),
+  greetingTimeout: Number(process.env.MAIL_TIMEOUT_MS || 5000),
+  socketTimeout: Number(process.env.MAIL_TIMEOUT_MS || 5000),
   auth: {
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
