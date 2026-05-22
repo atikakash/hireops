@@ -202,6 +202,7 @@ async function migratePostgres() {
     `);
 
     await seedDemoData(conn, demoPasswordHash);
+    await resetSerialSequences(conn);
 
     await conn.commit();
     console.log('PostgreSQL migrations completed.');
@@ -297,6 +298,32 @@ async function seedDemoData(conn, demoPasswordHash) {
            AND al.action = 'candidate.created'
        )`
   );
+}
+
+async function resetSerialSequences(conn) {
+  const serialTables = [
+    'companies',
+    'users',
+    'candidates',
+    'cvs',
+    'activity_logs',
+    'candidate_notes',
+    'audit_logs',
+    'jobs',
+    'pipeline_stages',
+    'job_candidates',
+    'notification_settings',
+  ];
+
+  for (const table of serialTables) {
+    await conn.query(`
+      SELECT setval(
+        pg_get_serial_sequence('${table}', 'id'),
+        GREATEST(COALESCE((SELECT MAX(id) FROM ${table}), 0) + 1, 1),
+        false
+      )
+    `);
+  }
 }
 
 migratePostgres().catch(() => process.exit(1));
