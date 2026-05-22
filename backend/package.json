@@ -1,0 +1,30 @@
+{
+  "name": "hireops-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "start:db": "node src/server.js",
+    "migrate:core": "node src/database/migrate_core.js",
+    "migrate:jobs": "node src/database/migrate_jobs.js",
+    "migrate:notifications": "node src/database/migrate_notifications.js",
+    "migrate:postgres": "node src/database/migrate_postgres.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "multer": "^2.1.1",
+    "mysql2": "^3.11.3",
+    "nodemailer": "^6.9.15",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
