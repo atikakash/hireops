@@ -12,16 +12,16 @@ const {
 } = require('../auth/sessionStore');
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().max(255).required(),
+  email: Joi.string().trim().lowercase().email().max(255).required(),
   password: Joi.string().min(8).max(128).required(),
 });
 
 const registerSchema = Joi.object({
   name: Joi.string().max(255).required(),
-  email: Joi.string().email().max(255).required(),
+  email: Joi.string().trim().lowercase().email().max(255).required(),
   password: Joi.string().min(8).max(128).required(),
   company_name: Joi.string().max(255).required(),
-  company_email: Joi.string().email().max(255).required(),
+  company_email: Joi.string().trim().lowercase().email().max(255).required(),
   company_phone: Joi.string().max(20).allow('', null),
   company_website: Joi.string().uri().max(255).allow('', null),
   company_industry: Joi.string().max(100).allow('', null),
@@ -29,11 +29,11 @@ const registerSchema = Joi.object({
 });
 
 const forgotPasswordSchema = Joi.object({
-  email: Joi.string().email().max(255).required(),
+  email: Joi.string().trim().lowercase().email().max(255).required(),
 });
 
 const resetPasswordSchema = Joi.object({
-  email: Joi.string().email().max(255).required(),
+  email: Joi.string().trim().lowercase().email().max(255).required(),
   otp: Joi.string().length(6).required(),
   password: Joi.string().min(8).max(128).required(),
 });

@@ -8,9 +8,10 @@ class AppValidators {
   AppValidators._();
 
   static String? email(String? value) {
-    if (value == null || value.isEmpty) return 'Email is required.';
-    final regex = RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$');
-    if (!regex.hasMatch(value)) return 'Enter a valid email address.';
+    final normalized = value?.trim() ?? '';
+    if (normalized.isEmpty) return 'Email is required.';
+    final regex = RegExp(r'^[^\s@]+@([^\s@.]+\.)+[^\s@.]{2,}$');
+    if (!regex.hasMatch(normalized)) return 'Enter a valid email address.';
     return null;
   }
 

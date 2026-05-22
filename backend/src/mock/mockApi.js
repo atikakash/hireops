@@ -295,8 +295,14 @@ const state = {
 };
 
 router.post('/auth/login', (req, res) => {
-  const email = stringValue(req.body.email).toLowerCase();
+  const email = normalizeEmail(req.body.email);
   const password = stringValue(req.body.password);
+  if (!isValidEmail(email)) {
+    return validationFailed(res, {
+      email: ['Enter a valid email address.'],
+    });
+  }
+
   const user = state.users.find((item) => item.email.toLowerCase() === email);
 
   if (!user || user.password !== password) {
@@ -310,15 +316,23 @@ router.post('/auth/login', (req, res) => {
 });
 
 router.post('/auth/register', (req, res) => {
-  const email = stringValue(req.body.email).toLowerCase();
+  const email = normalizeEmail(req.body.email);
+  const companyEmail = normalizeEmail(req.body.company_email || email);
+  const errors = {};
+  if (!isValidEmail(email)) {
+    errors.email = ['Enter a valid email address.'];
+  }
+  if (!isValidEmail(companyEmail)) {
+    errors.company_email = ['Enter a valid company email address.'];
+  }
+  if (Object.keys(errors).length) {
+    return validationFailed(res, errors);
+  }
+
   const existing = state.users.find((item) => item.email.toLowerCase() === email);
   if (existing) {
-    return res.status(422).json({
-      success: false,
-      message: 'Validation failed.',
-      errors: {
-        email: ['Email is already registered.'],
-      },
+    return validationFailed(res, {
+      email: ['Email is already registered.'],
     });
   }
 
@@ -336,7 +350,7 @@ router.post('/auth/register', (req, res) => {
     ...state.company,
     name: stringValue(req.body.company_name) || state.company.name,
     slug: slugify(stringValue(req.body.company_name) || state.company.name),
-    email: stringValue(req.body.company_email) || email,
+    email: companyEmail,
     phone: nullableString(req.body.company_phone) || state.company.phone,
     website: nullableString(req.body.company_website) || state.company.website,
     industry:
@@ -356,7 +370,13 @@ router.post('/auth/register', (req, res) => {
 });
 
 router.post('/auth/forgot-password', (req, res) => {
-  const email = stringValue(req.body.email).toLowerCase();
+  const email = normalizeEmail(req.body.email);
+  if (!isValidEmail(email)) {
+    return validationFailed(res, {
+      email: ['Enter a valid email address.'],
+    });
+  }
+
   const otp = '123456';
   state.passwordResetOtps.set(email, otp);
   return res.json({
@@ -367,9 +387,15 @@ router.post('/auth/forgot-password', (req, res) => {
 });
 
 router.post('/auth/reset-password', (req, res) => {
-  const email = stringValue(req.body.email).toLowerCase();
+  const email = normalizeEmail(req.body.email);
   const otp = stringValue(req.body.otp);
   const newPassword = stringValue(req.body.password);
+  if (!isValidEmail(email)) {
+    return validationFailed(res, {
+      email: ['Enter a valid email address.'],
+    });
+  }
+
   const expectedOtp = state.passwordResetOtps.get(email);
   const user = state.users.find((item) => item.email.toLowerCase() === email);
 
@@ -1244,6 +1270,22 @@ function stringValue(value) {
     return '';
   }
   return String(value).trim();
+}
+
+function normalizeEmail(value) {
+  return stringValue(value).toLowerCase();
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@([^\s@.]+\.)+[^\s@.]{2,}$/.test(value);
+}
+
+function validationFailed(res, errors) {
+  return res.status(422).json({
+    success: false,
+    message: 'Validation failed.',
+    errors,
+  });
 }
 
 function nullableString(value) {

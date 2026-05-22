@@ -37,9 +37,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
+    final normalizedEmail = _normalizeEmail(email);
     final response = await _dio.post(
       ApiConstants.login,
-      data: {'email': email, 'password': password},
+      data: {'email': normalizedEmail, 'password': password},
     );
 
     return AuthModel.fromApiJson(response.data as Map<String, dynamic>);
@@ -57,14 +58,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? companyIndustry,
     String? companyAddress,
   }) async {
+    final normalizedEmail = _normalizeEmail(email);
+    final normalizedCompanyEmail = _normalizeEmail(companyEmail);
     final response = await _dio.post(
       ApiConstants.register,
       data: {
         'name': name,
-        'email': email,
+        'email': normalizedEmail,
         'password': password,
         'company_name': companyName,
-        'company_email': companyEmail,
+        'company_email': normalizedCompanyEmail,
         'company_phone': companyPhone,
         'company_website': companyWebsite,
         'company_industry': companyIndustry,
@@ -77,9 +80,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+    final normalizedEmail = _normalizeEmail(email);
     final response = await _dio.post(
       ApiConstants.forgotPassword,
-      data: {'email': email},
+      data: {'email': normalizedEmail},
     );
 
     return response.data as Map<String, dynamic>;
@@ -91,9 +95,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String otp,
     required String newPassword,
   }) async {
+    final normalizedEmail = _normalizeEmail(email);
     final response = await _dio.post(
       ApiConstants.resetPassword,
-      data: {'email': email, 'otp': otp, 'password': newPassword},
+      data: {'email': normalizedEmail, 'otp': otp, 'password': newPassword},
     );
 
     return response.data as Map<String, dynamic>;
@@ -103,4 +108,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> logout() async {
     await _dio.post(ApiConstants.logout);
   }
+
+  String _normalizeEmail(String email) => email.trim().toLowerCase();
 }
