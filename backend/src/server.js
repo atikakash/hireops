@@ -58,7 +58,7 @@ app.get('/', (_req, res) => {
   res.json({
     success: true,
     message: 'HireOps API running',
-    version: '1.0.2',
+    version: '1.0.3',
     mode: mockMode ? 'mock' : 'database',
   });
 });
@@ -70,6 +70,7 @@ app.get('/api/health/db', async (_req, res) => {
       success: true,
       database: 'ok',
       client: db.isPostgres ? 'postgres' : 'mysql',
+      config: db.configSummary || null,
     });
   } catch (err) {
     console.error('database health error:', err);
@@ -77,6 +78,7 @@ app.get('/api/health/db', async (_req, res) => {
       success: false,
       database: 'error',
       client: db.isPostgres ? 'postgres' : 'mysql',
+      config: db.configSummary || null,
       code: err.code || null,
       message: err.message || 'Database connection failed.',
     });
