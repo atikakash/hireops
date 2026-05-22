@@ -47,23 +47,25 @@ class _DetailBody extends StatelessWidget {
     Future<void> toggle() async {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
-          title: Text(isOpen ? 'Close Job?' : 'Reopen Job?'),
-          content: Text(isOpen
-              ? 'This job will no longer accept new candidates.'
-              : 'This job will be listed as open again.'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(isOpen ? 'Close Job' : 'Reopen')),
-          ],
-        ),
+        builder: (_) => _JobStatusDialog(isOpen: isOpen),
       );
       if (confirmed == true) {
-        await ref.read(jobFormNotifierProvider.notifier).toggleStatus(job.id);
+        final ok = await ref
+            .read(jobFormNotifierProvider.notifier)
+            .toggleStatus(job.id);
+        if (!context.mounted) return;
+
+        final message = ok
+            ? (isOpen ? 'Job closed.' : 'Job reopened.')
+            : (ref.read(jobFormNotifierProvider).errorMessage ??
+                'Could not update job status.');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
 
@@ -252,6 +254,92 @@ class _DetailBody extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _AssignCandidateSheet(jobId: job.id, ref: ref),
+    );
+  }
+}
+
+class _JobStatusDialog extends StatelessWidget {
+  final bool isOpen;
+
+  const _JobStatusDialog({required this.isOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isClosing = isOpen;
+    final actionColor = isClosing ? AppColors.error : AppColors.primary;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isClosing ? Icons.lock_outline : Icons.lock_open_outlined,
+                    size: 20,
+                    color: actionColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isClosing ? 'Close Job?' : 'Reopen Job?',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isClosing
+                    ? 'This job will no longer accept new candidates.'
+                    : 'This job will be listed as open again.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.75),
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: actionColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(isClosing ? 'Close Job' : 'Reopen'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
