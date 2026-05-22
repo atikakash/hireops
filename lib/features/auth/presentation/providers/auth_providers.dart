@@ -36,6 +36,14 @@ RegisterUseCase registerUseCase(Ref ref) =>
     RegisterUseCase(ref.watch(authRepositoryProvider));
 
 @riverpod
+VerifyEmailUseCase verifyEmailUseCase(Ref ref) =>
+    VerifyEmailUseCase(ref.watch(authRepositoryProvider));
+
+@riverpod
+ResendVerificationUseCase resendVerificationUseCase(Ref ref) =>
+    ResendVerificationUseCase(ref.watch(authRepositoryProvider));
+
+@riverpod
 ForgotPasswordUseCase forgotPasswordUseCase(Ref ref) =>
     ForgotPasswordUseCase(ref.watch(authRepositoryProvider));
 
@@ -54,6 +62,8 @@ class AuthFormState with _$AuthFormState {
     String? errorMessage,
     String? successMessage,
     AuthEntity? user,
+    String? pendingVerificationEmail,
+    String? debugOtp,
   }) = _AuthFormState;
 }
 
@@ -111,7 +121,7 @@ class AuthNotifier extends _$AuthNotifier {
     );
     try {
       final useCase = ref.read(registerUseCaseProvider);
-      final (entity, failure) = await useCase(
+      final (result, failure) = await useCase(
         name: name,
         email: email,
         password: password,
@@ -127,7 +137,20 @@ class AuthNotifier extends _$AuthNotifier {
         return false;
       }
 
-      state = state.copyWith(isLoading: false, user: entity);
+      if (result?.requiresEmailVerification == true) {
+        final debugOtp = result?.debugOtp;
+        state = state.copyWith(
+          isLoading: false,
+          pendingVerificationEmail: result?.verificationEmail ?? email,
+          debugOtp: debugOtp,
+          successMessage: debugOtp == null || debugOtp.isEmpty
+              ? 'We sent a verification code to your email.'
+              : 'Verification code ready. Demo OTP: $debugOtp',
+        );
+        return false;
+      }
+
+      state = state.copyWith(isLoading: false, user: result?.auth);
       await ref.read(authStateProvider.notifier).setAuthenticated(true);
       return true;
     } on Object catch (error, stackTrace) {
@@ -136,6 +159,80 @@ class AuthNotifier extends _$AuthNotifier {
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Account creation failed. Please try again.',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      successMessage: null,
+    );
+    try {
+      final useCase = ref.read(verifyEmailUseCaseProvider);
+      final (entity, failure) = await useCase(email: email, otp: otp);
+
+      if (failure != null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: failure.message,
+        );
+        return false;
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        user: entity,
+        pendingVerificationEmail: null,
+        debugOtp: null,
+      );
+      await ref.read(authStateProvider.notifier).setAuthenticated(true);
+      return true;
+    } on Object catch (error, stackTrace) {
+      debugPrint('AuthNotifier.verifyEmail failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Email verification failed. Please try again.',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> resendVerification({required String email}) async {
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      successMessage: null,
+    );
+    try {
+      final useCase = ref.read(resendVerificationUseCaseProvider);
+      final (message, failure) = await useCase(email: email);
+
+      if (failure != null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: failure.message,
+        );
+        return false;
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        successMessage: message ?? 'Verification code sent.',
+      );
+      return true;
+    } on Object catch (error, stackTrace) {
+      debugPrint('AuthNotifier.resendVerification failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Could not resend verification code.',
       );
       return false;
     }

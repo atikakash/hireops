@@ -75,6 +75,45 @@ final registerUseCaseProvider = AutoDisposeProvider<RegisterUseCase>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef RegisterUseCaseRef = AutoDisposeProviderRef<RegisterUseCase>;
+String _$verifyEmailUseCaseHash() =>
+    r'16a79a670026b92b5c43a23aadd5eb73cd1c6bb3';
+
+/// See also [verifyEmailUseCase].
+@ProviderFor(verifyEmailUseCase)
+final verifyEmailUseCaseProvider =
+    AutoDisposeProvider<VerifyEmailUseCase>.internal(
+  verifyEmailUseCase,
+  name: r'verifyEmailUseCaseProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$verifyEmailUseCaseHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef VerifyEmailUseCaseRef = AutoDisposeProviderRef<VerifyEmailUseCase>;
+String _$resendVerificationUseCaseHash() =>
+    r'57e293097153e410a929a61ed8d1d366b5c23ba9';
+
+/// See also [resendVerificationUseCase].
+@ProviderFor(resendVerificationUseCase)
+final resendVerificationUseCaseProvider =
+    AutoDisposeProvider<ResendVerificationUseCase>.internal(
+  resendVerificationUseCase,
+  name: r'resendVerificationUseCaseProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$resendVerificationUseCaseHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef ResendVerificationUseCaseRef
+    = AutoDisposeProviderRef<ResendVerificationUseCase>;
 String _$forgotPasswordUseCaseHash() =>
     r'fbdfcfd332abb715b8d3fc0b285a896d26dafb3c';
 
@@ -131,7 +170,7 @@ final logoutUseCaseProvider = AutoDisposeProvider<LogoutUseCase>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef LogoutUseCaseRef = AutoDisposeProviderRef<LogoutUseCase>;
-String _$authNotifierHash() => r'8be33a6373fb7bf00f9d45ca86cd9bb4a50c4399';
+String _$authNotifierHash() => r'f395b14d145783efa3eb537e317507ac94cf3847';
 
 /// See also [AuthNotifier].
 @ProviderFor(AuthNotifier)

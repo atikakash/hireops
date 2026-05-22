@@ -36,6 +36,7 @@ async function migrateCore() {
         email          VARCHAR(255) NOT NULL UNIQUE,
         password_hash  VARCHAR(255),
         role           ENUM('admin', 'recruiter') DEFAULT 'admin',
+        email_verified_at TIMESTAMP NULL,
         is_active      TINYINT(1) DEFAULT 1,
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -44,6 +45,18 @@ async function migrateCore() {
       )
     `);
     console.log('OK users table ready');
+
+    try {
+      await conn.query('ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMP NULL');
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        throw err;
+      }
+    }
+
+    await conn.query(
+      'UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email_verified_at IS NULL'
+    );
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS candidates (
@@ -157,13 +170,14 @@ async function migrateCore() {
     );
 
     await conn.query(
-      `INSERT INTO users (id, company_id, name, email, password_hash, role)
-       VALUES (1, 1, 'Demo Admin', 'admin@hireops.io', ?, 'admin')
+      `INSERT INTO users (id, company_id, name, email, password_hash, role, email_verified_at)
+       VALUES (1, 1, 'Demo Admin', 'admin@hireops.io', ?, 'admin', CURRENT_TIMESTAMP)
        ON DUPLICATE KEY UPDATE
          company_id = VALUES(company_id),
          name = VALUES(name),
          password_hash = VALUES(password_hash),
          role = VALUES(role),
+         email_verified_at = CURRENT_TIMESTAMP,
          deleted_at = NULL`,
       [demoPasswordHash]
     );

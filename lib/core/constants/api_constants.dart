@@ -31,6 +31,8 @@ class ApiConstants {
   // ── Auth ────────────────────────────────────────────────────────────────────
   static const String login = '/api/auth/login';
   static const String register = '/api/auth/register';
+  static const String verifyEmail = '/api/auth/verify-email';
+  static const String resendVerification = '/api/auth/resend-verification';
   static const String forgotPassword = '/api/auth/forgot-password';
   static const String verifyOtp = '/api/auth/verify-otp';
   static const String resetPassword = '/api/auth/reset-password';

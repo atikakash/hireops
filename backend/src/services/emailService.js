@@ -138,12 +138,40 @@ function stageMovedTemplate({ companyName, candidateName, jobTitle, fromStage, t
   return baseTemplate('Candidate Stage Updated', body);
 }
 
+function emailVerificationTemplate({ name, otp }) {
+  const body = `
+    <h2 style="margin:0 0 8px;color:#1A1A1A;font-size:20px;">Verify your email</h2>
+    <p style="margin:0 0 24px;color:#666;font-size:14px;">
+      Hi <strong>${name}</strong>, use this 6-digit code to activate your HireOps account.
+    </p>
+
+    <div style="background:#F0F6FF;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+      <p style="margin:0 0 8px;color:#1A73E8;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+        Verification code
+      </p>
+      <p style="margin:0;color:#1A1A1A;font-size:32px;font-weight:700;letter-spacing:6px;">
+        ${otp}
+      </p>
+    </div>
+
+    <p style="margin:0;color:#666;font-size:14px;">
+      This code expires in 10 minutes. If you did not create a HireOps account, you can ignore this email.
+    </p>`;
+
+  return baseTemplate('Verify your HireOps email', body);
+}
+
 // ── Send helpers ──────────────────────────────────────────────────────────────
 
 /**
  * Send an email. Never throws — logs errors silently.
  */
 async function sendMail({ to, subject, html }) {
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    console.warn(`Email skipped for ${to}: MAIL_USER/MAIL_PASS not configured`);
+    return false;
+  }
+
   try {
     const info = await transporter.sendMail({
       from:    `"HireOps" <${process.env.MAIL_FROM || 'noreply@hireops.app'}>`,
@@ -155,6 +183,14 @@ async function sendMail({ to, subject, html }) {
     console.error(`📧 Email failed to ${to}:`, err.message);
     return false;
   }
+}
+
+async function sendEmailVerificationOtp({ to, name, otp }) {
+  return sendMail({
+    to,
+    subject: 'Verify your HireOps email',
+    html: emailVerificationTemplate({ name, otp }),
+  });
 }
 
 /**
@@ -225,6 +261,7 @@ async function notifyStageMoved({ db, companyId, candidateName, jobTitle, fromSt
 
 module.exports = {
   sendMail,
+  sendEmailVerificationOtp,
   notifyCVUploaded,
   notifyStageMoved,
 };

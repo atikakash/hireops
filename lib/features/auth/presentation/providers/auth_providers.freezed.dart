@@ -20,6 +20,8 @@ mixin _$AuthFormState {
   String? get errorMessage => throw _privateConstructorUsedError;
   String? get successMessage => throw _privateConstructorUsedError;
   AuthEntity? get user => throw _privateConstructorUsedError;
+  String? get pendingVerificationEmail => throw _privateConstructorUsedError;
+  String? get debugOtp => throw _privateConstructorUsedError;
 
   /// Create a copy of AuthFormState
   /// with the given fields replaced by the non-null parameter values.
@@ -38,7 +40,9 @@ abstract class $AuthFormStateCopyWith<$Res> {
       {bool isLoading,
       String? errorMessage,
       String? successMessage,
-      AuthEntity? user});
+      AuthEntity? user,
+      String? pendingVerificationEmail,
+      String? debugOtp});
 
   $AuthEntityCopyWith<$Res>? get user;
 }
@@ -62,6 +66,8 @@ class _$AuthFormStateCopyWithImpl<$Res, $Val extends AuthFormState>
     Object? errorMessage = freezed,
     Object? successMessage = freezed,
     Object? user = freezed,
+    Object? pendingVerificationEmail = freezed,
+    Object? debugOtp = freezed,
   }) {
     return _then(_value.copyWith(
       isLoading: null == isLoading
@@ -80,6 +86,14 @@ class _$AuthFormStateCopyWithImpl<$Res, $Val extends AuthFormState>
           ? _value.user
           : user // ignore: cast_nullable_to_non_nullable
               as AuthEntity?,
+      pendingVerificationEmail: freezed == pendingVerificationEmail
+          ? _value.pendingVerificationEmail
+          : pendingVerificationEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      debugOtp: freezed == debugOtp
+          ? _value.debugOtp
+          : debugOtp // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 
@@ -110,7 +124,9 @@ abstract class _$$AuthFormStateImplCopyWith<$Res>
       {bool isLoading,
       String? errorMessage,
       String? successMessage,
-      AuthEntity? user});
+      AuthEntity? user,
+      String? pendingVerificationEmail,
+      String? debugOtp});
 
   @override
   $AuthEntityCopyWith<$Res>? get user;
@@ -133,6 +149,8 @@ class __$$AuthFormStateImplCopyWithImpl<$Res>
     Object? errorMessage = freezed,
     Object? successMessage = freezed,
     Object? user = freezed,
+    Object? pendingVerificationEmail = freezed,
+    Object? debugOtp = freezed,
   }) {
     return _then(_$AuthFormStateImpl(
       isLoading: null == isLoading
@@ -151,6 +169,14 @@ class __$$AuthFormStateImplCopyWithImpl<$Res>
           ? _value.user
           : user // ignore: cast_nullable_to_non_nullable
               as AuthEntity?,
+      pendingVerificationEmail: freezed == pendingVerificationEmail
+          ? _value.pendingVerificationEmail
+          : pendingVerificationEmail // ignore: cast_nullable_to_non_nullable
+              as String?,
+      debugOtp: freezed == debugOtp
+          ? _value.debugOtp
+          : debugOtp // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -164,7 +190,9 @@ class _$AuthFormStateImpl
       {this.isLoading = false,
       this.errorMessage,
       this.successMessage,
-      this.user});
+      this.user,
+      this.pendingVerificationEmail,
+      this.debugOtp});
 
   @override
   @JsonKey()
@@ -175,10 +203,14 @@ class _$AuthFormStateImpl
   final String? successMessage;
   @override
   final AuthEntity? user;
+  @override
+  final String? pendingVerificationEmail;
+  @override
+  final String? debugOtp;
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'AuthFormState(isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage, user: $user)';
+    return 'AuthFormState(isLoading: $isLoading, errorMessage: $errorMessage, successMessage: $successMessage, user: $user, pendingVerificationEmail: $pendingVerificationEmail, debugOtp: $debugOtp)';
   }
 
   @override
@@ -189,7 +221,10 @@ class _$AuthFormStateImpl
       ..add(DiagnosticsProperty('isLoading', isLoading))
       ..add(DiagnosticsProperty('errorMessage', errorMessage))
       ..add(DiagnosticsProperty('successMessage', successMessage))
-      ..add(DiagnosticsProperty('user', user));
+      ..add(DiagnosticsProperty('user', user))
+      ..add(DiagnosticsProperty(
+          'pendingVerificationEmail', pendingVerificationEmail))
+      ..add(DiagnosticsProperty('debugOtp', debugOtp));
   }
 
   @override
@@ -203,12 +238,17 @@ class _$AuthFormStateImpl
                 other.errorMessage == errorMessage) &&
             (identical(other.successMessage, successMessage) ||
                 other.successMessage == successMessage) &&
-            (identical(other.user, user) || other.user == user));
+            (identical(other.user, user) || other.user == user) &&
+            (identical(
+                    other.pendingVerificationEmail, pendingVerificationEmail) ||
+                other.pendingVerificationEmail == pendingVerificationEmail) &&
+            (identical(other.debugOtp, debugOtp) ||
+                other.debugOtp == debugOtp));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, isLoading, errorMessage, successMessage, user);
+  int get hashCode => Object.hash(runtimeType, isLoading, errorMessage,
+      successMessage, user, pendingVerificationEmail, debugOtp);
 
   /// Create a copy of AuthFormState
   /// with the given fields replaced by the non-null parameter values.
@@ -224,7 +264,9 @@ abstract class _AuthFormState implements AuthFormState {
       {final bool isLoading,
       final String? errorMessage,
       final String? successMessage,
-      final AuthEntity? user}) = _$AuthFormStateImpl;
+      final AuthEntity? user,
+      final String? pendingVerificationEmail,
+      final String? debugOtp}) = _$AuthFormStateImpl;
 
   @override
   bool get isLoading;
@@ -234,6 +276,10 @@ abstract class _AuthFormState implements AuthFormState {
   String? get successMessage;
   @override
   AuthEntity? get user;
+  @override
+  String? get pendingVerificationEmail;
+  @override
+  String? get debugOtp;
 
   /// Create a copy of AuthFormState
   /// with the given fields replaced by the non-null parameter values.

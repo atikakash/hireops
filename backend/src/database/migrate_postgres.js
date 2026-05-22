@@ -39,11 +39,23 @@ async function migratePostgres() {
         email          VARCHAR(255) NOT NULL UNIQUE,
         password_hash  VARCHAR(255),
         role           VARCHAR(30) DEFAULT 'admin',
+        email_verified_at TIMESTAMP NULL,
         is_active      INTEGER DEFAULT 1,
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at     TIMESTAMP NULL
       )
+    `);
+
+    await conn.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL
+    `);
+
+    await conn.query(`
+      UPDATE users
+      SET email_verified_at = CURRENT_TIMESTAMP
+      WHERE email_verified_at IS NULL
     `);
 
     await conn.query(`
@@ -231,13 +243,14 @@ async function seedDemoData(conn, demoPasswordHash) {
   );
 
   await conn.query(
-    `INSERT INTO users (id, company_id, name, email, password_hash, role)
-     VALUES (1, 1, 'Demo Admin', 'admin@hireops.io', ?, 'admin')
+    `INSERT INTO users (id, company_id, name, email, password_hash, role, email_verified_at)
+     VALUES (1, 1, 'Demo Admin', 'admin@hireops.io', ?, 'admin', CURRENT_TIMESTAMP)
      ON CONFLICT (id) DO UPDATE SET
        company_id = EXCLUDED.company_id,
        name = EXCLUDED.name,
        password_hash = EXCLUDED.password_hash,
        role = EXCLUDED.role,
+       email_verified_at = CURRENT_TIMESTAMP,
        deleted_at = NULL`,
     [demoPasswordHash]
   );

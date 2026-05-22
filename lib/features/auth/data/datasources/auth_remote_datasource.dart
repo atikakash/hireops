@@ -5,7 +5,7 @@ import 'package:hireops/features/auth/data/models/auth_model.dart';
 
 abstract interface class AuthRemoteDataSource {
   Future<AuthModel> login({required String email, required String password});
-  Future<AuthModel> register({
+  Future<Map<String, dynamic>> register({
     required String name,
     required String email,
     required String password,
@@ -16,6 +16,8 @@ abstract interface class AuthRemoteDataSource {
     String? companyIndustry,
     String? companyAddress,
   });
+  Future<AuthModel> verifyEmail({required String email, required String otp});
+  Future<Map<String, dynamic>> resendVerification({required String email});
   Future<Map<String, dynamic>> forgotPassword({required String email});
   Future<Map<String, dynamic>> resetPassword({
     required String email,
@@ -47,7 +49,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AuthModel> register({
+  Future<Map<String, dynamic>> register({
     required String name,
     required String email,
     required String password,
@@ -75,7 +77,32 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       },
     );
 
+    return response.data as Map<String, dynamic>;
+  }
+
+  @override
+  Future<AuthModel> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    final response = await _dio.post(
+      ApiConstants.verifyEmail,
+      data: {'email': email, 'otp': otp},
+    );
+
     return AuthModel.fromApiJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Map<String, dynamic>> resendVerification({
+    required String email,
+  }) async {
+    final response = await _dio.post(
+      ApiConstants.resendVerification,
+      data: {'email': email},
+    );
+
+    return response.data as Map<String, dynamic>;
   }
 
   @override

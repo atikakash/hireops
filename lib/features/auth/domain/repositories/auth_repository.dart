@@ -7,7 +7,7 @@ abstract interface class AuthRepository {
     required String password,
   });
 
-  Future<(AuthEntity?, Failure?)> register({
+  Future<(AuthRegistrationResult?, Failure?)> register({
     required String name,
     required String email,
     required String password,
@@ -22,6 +22,13 @@ abstract interface class AuthRepository {
     required String otp,
     required String newPassword,
   });
+
+  Future<(AuthEntity?, Failure?)> verifyEmail({
+    required String email,
+    required String otp,
+  });
+
+  Future<(String?, Failure?)> resendVerification({required String email});
 
   Future<(bool, Failure?)> logout();
 }

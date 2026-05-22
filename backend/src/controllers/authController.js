@@ -9,7 +9,10 @@ const {
   revokeAccessToken,
   savePasswordResetOtp,
   consumePasswordResetOtp,
+  saveEmailVerificationOtp,
+  consumeEmailVerificationOtp,
 } = require('../auth/sessionStore');
+const { sendEmailVerificationOtp } = require('../services/emailService');
 
 const loginSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(255).required(),
@@ -32,6 +35,15 @@ const forgotPasswordSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(255).required(),
 });
 
+const verifyEmailSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().max(255).required(),
+  otp: Joi.string().length(6).required(),
+});
+
+const resendVerificationSchema = Joi.object({
+  email: Joi.string().trim().lowercase().email().max(255).required(),
+});
+
 const resetPasswordSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(255).required(),
   otp: Joi.string().length(6).required(),
@@ -47,6 +59,7 @@ async function login(req, res) {
   try {
     const [rows] = await db.query(
       `SELECT u.id, u.company_id, u.name, u.email, u.password_hash, u.role,
+              u.email_verified_at,
               c.name AS company_name, c.slug AS company_slug
        FROM users u
        JOIN companies c ON c.id = u.company_id
@@ -59,6 +72,15 @@ async function login(req, res) {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password.',
+      });
+    }
+
+    if (!rows[0].email_verified_at) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before signing in.',
+        needsEmailVerification: true,
+        email: value.email,
       });
     }
 
@@ -165,18 +187,20 @@ async function register(req, res) {
 
     await conn.commit();
 
-    const authUser = {
-      id: userResult.insertId,
-      company_id: companyId,
-      name: value.name.trim(),
+    const otpResult = await issueEmailVerificationOtp({
       email: normalizedUserEmail,
-      role: 'admin',
-      company_name: value.company_name.trim(),
-      company_slug: slug,
-      avatar_url: null,
-    };
+      name: value.name.trim(),
+    });
 
-    return res.status(201).json(buildAuthPayload(authUser));
+    return res.status(201).json({
+      success: true,
+      message: 'Account created. Verify your email to sign in.',
+      data: {
+        requiresEmailVerification: true,
+        email: normalizedUserEmail,
+      },
+      ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
+    });
   } catch (err) {
     await conn.rollback();
     console.error('register error:', err);
@@ -186,6 +210,105 @@ async function register(req, res) {
     });
   } finally {
     conn.release();
+  }
+}
+
+async function verifyEmail(req, res) {
+  const { error, value } = verifyEmailSchema.validate(req.body);
+  if (error) {
+    return validationFailed(res, error);
+  }
+
+  if (!consumeEmailVerificationOtp(value.email, value.otp)) {
+    return res.status(422).json({
+      success: false,
+      message: 'Invalid or expired verification code.',
+      errors: {
+        otp: ['Invalid or expired verification code.'],
+      },
+    });
+  }
+
+  try {
+    const [result] = await db.query(
+      `UPDATE users
+       SET email_verified_at = NOW(), updated_at = NOW()
+       WHERE email = ? AND deleted_at IS NULL`,
+      [value.email]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    const [userRows] = await db.query(
+      `SELECT u.id, u.company_id, u.name, u.email, u.role, u.email_verified_at,
+              c.name AS company_name, c.slug AS company_slug
+       FROM users u
+       JOIN companies c ON c.id = u.company_id
+       WHERE u.email = ? AND u.deleted_at IS NULL AND c.deleted_at IS NULL
+       LIMIT 1`,
+      [value.email]
+    );
+
+    return res.json(buildAuthPayload(userRows[0]));
+  } catch (err) {
+    console.error('verifyEmail error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not verify email.',
+    });
+  }
+}
+
+async function resendVerification(req, res) {
+  const { error, value } = resendVerificationSchema.validate(req.body);
+  if (error) {
+    return validationFailed(res, error);
+  }
+
+  try {
+    const [rows] = await db.query(
+      `SELECT id, name, email, email_verified_at
+       FROM users
+       WHERE email = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [value.email]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (rows[0].email_verified_at) {
+      return res.json({
+        success: true,
+        message: 'Email is already verified. You can sign in now.',
+      });
+    }
+
+    const otpResult = await issueEmailVerificationOtp({
+      email: rows[0].email,
+      name: rows[0].name,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Verification code sent.',
+      ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
+    });
+  } catch (err) {
+    console.error('resendVerification error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not resend verification code.',
+    });
   }
 }
 
@@ -308,6 +431,17 @@ async function logout(req, res) {
   });
 }
 
+async function issueEmailVerificationOtp({ email, name }) {
+  const otp = createOtp();
+  saveEmailVerificationOtp(email, otp);
+  const sent = await sendEmailVerificationOtp({ to: email, name, otp });
+  return { sent, debugOtp: sent ? null : otp };
+}
+
+function createOtp() {
+  return `${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
 function buildAuthPayload(user) {
   const session = issueSession(user);
   return {
@@ -386,6 +520,8 @@ function normalizeOptional(value) {
 module.exports = {
   login,
   register,
+  verifyEmail,
+  resendVerification,
   forgotPassword,
   resetPassword,
   refreshToken,

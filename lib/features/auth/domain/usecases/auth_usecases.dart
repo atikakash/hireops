@@ -17,7 +17,7 @@ class RegisterUseCase {
   final AuthRepository _repository;
   const RegisterUseCase(this._repository);
 
-  Future<(AuthEntity?, Failure?)> call({
+  Future<(AuthRegistrationResult?, Failure?)> call({
     required String name,
     required String email,
     required String password,
@@ -31,6 +31,25 @@ class RegisterUseCase {
         companyName: companyName,
         companyEmail: companyEmail,
       );
+}
+
+class VerifyEmailUseCase {
+  final AuthRepository _repository;
+  const VerifyEmailUseCase(this._repository);
+
+  Future<(AuthEntity?, Failure?)> call({
+    required String email,
+    required String otp,
+  }) =>
+      _repository.verifyEmail(email: email, otp: otp);
+}
+
+class ResendVerificationUseCase {
+  final AuthRepository _repository;
+  const ResendVerificationUseCase(this._repository);
+
+  Future<(String?, Failure?)> call({required String email}) =>
+      _repository.resendVerification(email: email);
 }
 
 class ForgotPasswordUseCase {

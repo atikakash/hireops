@@ -36,7 +36,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<(AuthEntity?, Failure?)> register({
+  Future<(AuthRegistrationResult?, Failure?)> register({
     required String name,
     required String email,
     required String password,
@@ -44,18 +44,73 @@ class AuthRepositoryImpl implements AuthRepository {
     String? companyEmail,
   }) async {
     try {
-      final model = await _dataSource.register(
+      final response = await _dataSource.register(
         name: name,
         email: email,
         password: password,
         companyName: companyName,
         companyEmail: companyEmail ?? email,
       );
+
+      final data = _asMap(response['data']);
+      final requiresVerification = data['requiresEmailVerification'] == true;
+      if (requiresVerification) {
+        return (
+          AuthRegistrationResult(
+            requiresEmailVerification: true,
+            verificationEmail: data['email']?.toString() ?? email,
+            debugOtp: response['debug_otp']?.toString(),
+          ),
+          null,
+        );
+      }
+
+      final model = AuthModel.fromApiJson(response);
+      await _tokenStorage.saveTokens(
+        accessToken: model.accessToken,
+        refreshToken: model.refreshToken,
+      );
+      return (AuthRegistrationResult(auth: model.toEntity()), null);
+    } on AppException catch (e) {
+      return (null, _mapException(e));
+    } on Object catch (e) {
+      return (null, _mapUnexpectedError(e));
+    }
+  }
+
+  @override
+  Future<(AuthEntity?, Failure?)> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final model = await _dataSource.verifyEmail(email: email, otp: otp);
       await _tokenStorage.saveTokens(
         accessToken: model.accessToken,
         refreshToken: model.refreshToken,
       );
       return (model.toEntity(), null);
+    } on AppException catch (e) {
+      return (null, _mapException(e));
+    } on Object catch (e) {
+      return (null, _mapUnexpectedError(e));
+    }
+  }
+
+  @override
+  Future<(String?, Failure?)> resendVerification(
+      {required String email}) async {
+    try {
+      final response = await _dataSource.resendVerification(email: email);
+      final message =
+          response['message']?.toString() ?? 'Verification code sent.';
+      final debugOtp = response['debug_otp']?.toString();
+      return (
+        debugOtp == null || debugOtp.isEmpty
+            ? message
+            : '$message Demo OTP: $debugOtp',
+        null,
+      );
     } on AppException catch (e) {
       return (null, _mapException(e));
     } on Object catch (e) {
@@ -184,4 +239,16 @@ class AuthRepositoryImpl implements AuthRepository {
 
     return '$baseMessage Demo OTP: $debugOtp';
   }
+}
+
+Map<String, dynamic> _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+
+  return const <String, dynamic>{};
 }

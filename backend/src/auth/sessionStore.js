@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const accessSessions = new Map();
 const refreshSessions = new Map();
 const passwordResetOtps = new Map();
+const emailVerificationOtps = new Map();
 
 function issueSession(user) {
   const session = {
@@ -68,20 +69,36 @@ function revokeSessionByRefresh(refreshToken) {
 }
 
 function savePasswordResetOtp(email, otp) {
-  passwordResetOtps.set(email.toLowerCase(), {
+  saveOtp(passwordResetOtps, email, otp);
+}
+
+function consumePasswordResetOtp(email, otp) {
+  return consumeOtp(passwordResetOtps, email, otp);
+}
+
+function saveEmailVerificationOtp(email, otp) {
+  saveOtp(emailVerificationOtps, email, otp);
+}
+
+function consumeEmailVerificationOtp(email, otp) {
+  return consumeOtp(emailVerificationOtps, email, otp);
+}
+
+function saveOtp(store, email, otp) {
+  store.set(email.toLowerCase(), {
     otp,
     expiresAt: Date.now() + 10 * 60 * 1000,
   });
 }
 
-function consumePasswordResetOtp(email, otp) {
+function consumeOtp(store, email, otp) {
   const key = email.toLowerCase();
-  const record = passwordResetOtps.get(key);
+  const record = store.get(key);
   if (!record) {
     return false;
   }
 
-  passwordResetOtps.delete(key);
+  store.delete(key);
   return record.otp === otp && record.expiresAt > Date.now();
 }
 
@@ -97,4 +114,6 @@ module.exports = {
   revokeSessionByRefresh,
   savePasswordResetOtp,
   consumePasswordResetOtp,
+  saveEmailVerificationOtp,
+  consumeEmailVerificationOtp,
 };

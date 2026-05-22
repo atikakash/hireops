@@ -19,3 +19,17 @@ class AuthEntity with _$AuthEntity {
     String? avatarUrl,
   }) = _AuthEntity;
 }
+
+class AuthRegistrationResult {
+  final AuthEntity? auth;
+  final bool requiresEmailVerification;
+  final String? verificationEmail;
+  final String? debugOtp;
+
+  const AuthRegistrationResult({
+    this.auth,
+    this.requiresEmailVerification = false,
+    this.verificationEmail,
+    this.debugOtp,
+  });
+}
