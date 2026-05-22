@@ -51,12 +51,15 @@ const listJobs = async (req, res) => {
 
     const [jobs] = await db.query(
       `SELECT j.*, u.name AS created_by_name,
-              COUNT(jc.id) AS candidate_count
+              COALESCE(jc_counts.candidate_count, 0) AS candidate_count
        FROM jobs j
        LEFT JOIN users u ON u.id = j.created_by
-       LEFT JOIN job_candidates jc ON jc.job_id = j.id
+       LEFT JOIN (
+         SELECT job_id, COUNT(*) AS candidate_count
+         FROM job_candidates
+         GROUP BY job_id
+       ) jc_counts ON jc_counts.job_id = j.id
        WHERE ${where}
-       GROUP BY j.id
        ORDER BY j.created_at DESC`,
       params
     );
@@ -182,11 +185,15 @@ const updateJob = async (req, res) => {
     }
 
     const [updated] = await db.query(
-      `SELECT j.*, COUNT(jc.id) AS candidate_count
+      `SELECT j.*, COALESCE(jc_counts.candidate_count, 0) AS candidate_count
        FROM jobs j
-       LEFT JOIN job_candidates jc ON jc.job_id = j.id
+       LEFT JOIN (
+         SELECT job_id, COUNT(*) AS candidate_count
+         FROM job_candidates
+         GROUP BY job_id
+       ) jc_counts ON jc_counts.job_id = j.id
        WHERE j.id = ?
-       GROUP BY j.id`,
+       LIMIT 1`,
       [req.params.id]
     );
 
