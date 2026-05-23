@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 
 const { auditLog, securityHeaders } = require('./middleware/securityMiddleware');
 const db = require('./config/database');
+const { verifyEmailTransport } = require('./services/emailService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -83,6 +84,17 @@ app.get('/api/health/db', async (_req, res) => {
       message: err.message || 'Database connection failed.',
     });
   }
+});
+
+app.get('/api/health/email', async (_req, res) => {
+  const result = await verifyEmailTransport();
+  res.status(result.ok ? 200 : 500).json({
+    success: result.ok,
+    email: result.ok ? 'ok' : 'error',
+    config: result.config,
+    code: result.code || null,
+    message: result.message || null,
+  });
 });
 
 function mountIfPresent(routePath, relativeModulePath, middleware = []) {

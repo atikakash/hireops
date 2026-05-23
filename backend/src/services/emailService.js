@@ -15,6 +15,38 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+async function verifyEmailTransport() {
+  const config = {
+    host: process.env.MAIL_HOST || 'smtp-relay.brevo.com',
+    port: parseInt(process.env.MAIL_PORT || '587', 10),
+    secure: process.env.MAIL_SECURE === 'true',
+    hasUser: Boolean(process.env.MAIL_USER),
+    hasPassword: Boolean(process.env.MAIL_PASS),
+    from: process.env.MAIL_FROM || null,
+  };
+
+  if (!config.hasUser || !config.hasPassword) {
+    return {
+      ok: false,
+      config,
+      code: 'MAIL_AUTH_MISSING',
+      message: 'MAIL_USER and MAIL_PASS must be set in Render.',
+    };
+  }
+
+  try {
+    await transporter.verify();
+    return { ok: true, config };
+  } catch (err) {
+    return {
+      ok: false,
+      config,
+      code: err.code || err.responseCode || null,
+      message: err.message || 'SMTP verification failed.',
+    };
+  }
+}
+
 // ── Base HTML template wrapper ─────────────────────────────────────────────────
 function baseTemplate(title, bodyHtml) {
   return `
@@ -265,6 +297,7 @@ async function notifyStageMoved({ db, companyId, candidateName, jobTitle, fromSt
 module.exports = {
   sendMail,
   sendEmailVerificationOtp,
+  verifyEmailTransport,
   notifyCVUploaded,
   notifyStageMoved,
 };
