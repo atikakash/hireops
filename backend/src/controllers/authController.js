@@ -11,6 +11,9 @@ const {
   consumePasswordResetOtp,
   saveEmailVerificationOtp,
   consumeEmailVerificationOtp,
+  savePendingRegistration,
+  getPendingRegistration,
+  consumePendingRegistration,
 } = require('../auth/sessionStore');
 const { sendEmailVerificationOtp } = require('../services/emailService');
 
@@ -99,50 +102,33 @@ async function register(req, res) {
     return validationFailed(res, error);
   }
 
-  const conn = await db.getConnection();
-
   try {
-    await conn.beginTransaction();
-
     const normalizedUserEmail = value.email.toLowerCase();
     const normalizedCompanyEmail = value.company_email.toLowerCase();
 
-    const [existingUsers] = await conn.query(
-      'SELECT id, email_verified_at FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+    const [existingUsers] = await db.query(
+      'SELECT id, company_id, email_verified_at FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [normalizedUserEmail]
     );
     if (existingUsers.length) {
-      await conn.rollback();
       if (!existingUsers[0].email_verified_at) {
-        const otpResult = await issueEmailVerificationOtp({
-          email: normalizedUserEmail,
-          name: value.name.trim(),
-        });
-
-        return res.status(409).json({
+        await deleteUnverifiedAccount(existingUsers[0]);
+      } else {
+        return res.status(422).json({
           success: false,
-          message: 'Account already exists but email is not verified. We sent a new verification code.',
-          needsEmailVerification: true,
-          email: normalizedUserEmail,
-          ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
+          message: 'Validation failed.',
+          errors: {
+            email: ['Email is already registered.'],
+          },
         });
       }
-
-      return res.status(422).json({
-        success: false,
-        message: 'Validation failed.',
-        errors: {
-          email: ['Email is already registered.'],
-        },
-      });
     }
 
-    const [existingCompanies] = await conn.query(
+    const [existingCompanies] = await db.query(
       'SELECT id FROM companies WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [normalizedCompanyEmail]
     );
     if (existingCompanies.length) {
-      await conn.rollback();
       return res.status(422).json({
         success: false,
         message: 'Validation failed.',
@@ -152,55 +138,17 @@ async function register(req, res) {
       });
     }
 
-    const slug = await uniqueCompanySlug(conn, value.company_name);
-
-    const [companyResult] = await conn.query(
-      `INSERT INTO companies (name, slug, email, phone, website, industry, address)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        value.company_name.trim(),
-        slug,
-        normalizedCompanyEmail,
-        normalizeOptional(value.company_phone),
-        normalizeOptional(value.company_website),
-        normalizeOptional(value.company_industry),
-        normalizeOptional(value.company_address),
-      ]
-    );
-
-    const companyId = companyResult.insertId;
-
-    const [userResult] = await conn.query(
-      `INSERT INTO users (company_id, name, email, password_hash, role)
-       VALUES (?, ?, ?, ?, 'admin')`,
-      [
-        companyId,
-        value.name.trim(),
-        normalizedUserEmail,
-        hashPassword(value.password),
-      ]
-    );
-
-    await seedPipelineStages(conn, companyId);
-
-    await conn.query(
-      `INSERT INTO notification_settings (company_id, notify_cv_upload, notify_stage_change, email_notifications)
-       VALUES (?, 1, 1, 1)`,
-      [companyId]
-    );
-
-    await conn.query(
-      `INSERT INTO activity_logs (company_id, user_id, entity_type, entity_id, action, description)
-       VALUES (?, ?, 'company', ?, 'company.created', ?)`,
-      [
-        companyId,
-        userResult.insertId,
-        companyId,
-        `Created company account for ${value.company_name.trim()}.`,
-      ]
-    );
-
-    await conn.commit();
+    savePendingRegistration(normalizedUserEmail, {
+      name: value.name.trim(),
+      email: normalizedUserEmail,
+      password: value.password,
+      company_name: value.company_name.trim(),
+      company_email: normalizedCompanyEmail,
+      company_phone: normalizeOptional(value.company_phone),
+      company_website: normalizeOptional(value.company_website),
+      company_industry: normalizeOptional(value.company_industry),
+      company_address: normalizeOptional(value.company_address),
+    });
 
     const otpResult = await issueEmailVerificationOtp({
       email: normalizedUserEmail,
@@ -217,14 +165,11 @@ async function register(req, res) {
       ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
     });
   } catch (err) {
-    await conn.rollback();
     console.error('register error:', err);
     return res.status(500).json({
       success: false,
       message: 'Failed to create account.',
     });
-  } finally {
-    conn.release();
   }
 }
 
@@ -245,6 +190,29 @@ async function verifyEmail(req, res) {
   }
 
   try {
+    const pendingRegistration = consumePendingRegistration(value.email);
+    if (pendingRegistration) {
+      const authUser = await createVerifiedAccount(pendingRegistration);
+      return res.json(buildAuthPayload(authUser));
+    }
+
+    const [existingRows] = await db.query(
+      `SELECT u.id, u.company_id, u.name, u.email, u.role, u.email_verified_at,
+              c.name AS company_name, c.slug AS company_slug
+       FROM users u
+       JOIN companies c ON c.id = u.company_id
+       WHERE u.email = ? AND u.deleted_at IS NULL AND c.deleted_at IS NULL
+       LIMIT 1`,
+      [value.email]
+    );
+
+    if (!existingRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Verification expired. Please create your account again.',
+      });
+    }
+
     const [result] = await db.query(
       `UPDATE users
        SET email_verified_at = NOW(), updated_at = NOW()
@@ -259,17 +227,7 @@ async function verifyEmail(req, res) {
       });
     }
 
-    const [userRows] = await db.query(
-      `SELECT u.id, u.company_id, u.name, u.email, u.role, u.email_verified_at,
-              c.name AS company_name, c.slug AS company_slug
-       FROM users u
-       JOIN companies c ON c.id = u.company_id
-       WHERE u.email = ? AND u.deleted_at IS NULL AND c.deleted_at IS NULL
-       LIMIT 1`,
-      [value.email]
-    );
-
-    return res.json(buildAuthPayload(userRows[0]));
+    return res.json(buildAuthPayload(existingRows[0]));
   } catch (err) {
     console.error('verifyEmail error:', err);
     return res.status(500).json({
@@ -286,6 +244,20 @@ async function resendVerification(req, res) {
   }
 
   try {
+    const pendingRegistration = getPendingRegistration(value.email);
+    if (pendingRegistration) {
+      const otpResult = await issueEmailVerificationOtp({
+        email: pendingRegistration.email,
+        name: pendingRegistration.name,
+      });
+
+      return res.json({
+        success: true,
+        message: 'Verification code sent.',
+        ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
+      });
+    }
+
     const [rows] = await db.query(
       `SELECT id, name, email, email_verified_at
        FROM users
@@ -444,6 +416,103 @@ async function logout(req, res) {
     success: true,
     message: 'Logged out successfully.',
   });
+}
+
+async function createVerifiedAccount(registration) {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const [existingUsers] = await conn.query(
+      'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      [registration.email]
+    );
+    if (existingUsers.length) {
+      throw new Error('Email is already registered.');
+    }
+
+    const [existingCompanies] = await conn.query(
+      'SELECT id FROM companies WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      [registration.company_email]
+    );
+    if (existingCompanies.length) {
+      throw new Error('Company email is already registered.');
+    }
+
+    const slug = await uniqueCompanySlug(conn, registration.company_name);
+
+    const [companyResult] = await conn.query(
+      `INSERT INTO companies (name, slug, email, phone, website, industry, address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        registration.company_name,
+        slug,
+        registration.company_email,
+        registration.company_phone,
+        registration.company_website,
+        registration.company_industry,
+        registration.company_address,
+      ]
+    );
+
+    const companyId = companyResult.insertId;
+
+    const [userResult] = await conn.query(
+      `INSERT INTO users (company_id, name, email, password_hash, role, email_verified_at)
+       VALUES (?, ?, ?, ?, 'admin', NOW())`,
+      [
+        companyId,
+        registration.name,
+        registration.email,
+        hashPassword(registration.password),
+      ]
+    );
+
+    await seedPipelineStages(conn, companyId);
+
+    await conn.query(
+      `INSERT INTO notification_settings (company_id, notify_cv_upload, notify_stage_change, email_notifications)
+       VALUES (?, 1, 1, 1)`,
+      [companyId]
+    );
+
+    await conn.query(
+      `INSERT INTO activity_logs (company_id, user_id, entity_type, entity_id, action, description)
+       VALUES (?, ?, 'company', ?, 'company.created', ?)`,
+      [
+        companyId,
+        userResult.insertId,
+        companyId,
+        `Created company account for ${registration.company_name}.`,
+      ]
+    );
+
+    await conn.commit();
+
+    return {
+      id: userResult.insertId,
+      company_id: companyId,
+      name: registration.name,
+      email: registration.email,
+      role: 'admin',
+      company_name: registration.company_name,
+      company_slug: slug,
+      avatar_url: null,
+    };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+async function deleteUnverifiedAccount(user) {
+  await db.query(
+    'DELETE FROM companies WHERE id = ? AND NOT EXISTS (SELECT 1 FROM users WHERE company_id = ? AND email_verified_at IS NOT NULL AND deleted_at IS NULL)',
+    [user.company_id, user.company_id]
+  );
 }
 
 async function issueEmailVerificationOtp({ email, name }) {

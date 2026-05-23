@@ -4,6 +4,7 @@ const accessSessions = new Map();
 const refreshSessions = new Map();
 const passwordResetOtps = new Map();
 const emailVerificationOtps = new Map();
+const pendingRegistrations = new Map();
 
 function issueSession(user) {
   const session = {
@@ -84,6 +85,35 @@ function consumeEmailVerificationOtp(email, otp) {
   return consumeOtp(emailVerificationOtps, email, otp);
 }
 
+function savePendingRegistration(email, registration) {
+  pendingRegistrations.set(email.toLowerCase(), {
+    registration,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  });
+}
+
+function getPendingRegistration(email) {
+  const key = email.toLowerCase();
+  const record = pendingRegistrations.get(key);
+  if (!record) {
+    return null;
+  }
+
+  if (record.expiresAt <= Date.now()) {
+    pendingRegistrations.delete(key);
+    return null;
+  }
+
+  return record.registration;
+}
+
+function consumePendingRegistration(email) {
+  const key = email.toLowerCase();
+  const registration = getPendingRegistration(email);
+  pendingRegistrations.delete(key);
+  return registration;
+}
+
 function saveOtp(store, email, otp) {
   store.set(email.toLowerCase(), {
     otp,
@@ -116,4 +146,7 @@ module.exports = {
   consumePasswordResetOtp,
   saveEmailVerificationOtp,
   consumeEmailVerificationOtp,
+  savePendingRegistration,
+  getPendingRegistration,
+  consumePendingRegistration,
 };

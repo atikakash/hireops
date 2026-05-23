@@ -53,12 +53,6 @@ async function migratePostgres() {
     `);
 
     await conn.query(`
-      UPDATE users
-      SET email_verified_at = CURRENT_TIMESTAMP
-      WHERE email_verified_at IS NULL
-    `);
-
-    await conn.query(`
       CREATE TABLE IF NOT EXISTS candidates (
         id                SERIAL PRIMARY KEY,
         company_id        INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -214,6 +208,7 @@ async function migratePostgres() {
     `);
 
     await seedDemoData(conn, demoPasswordHash);
+    await deleteUnverifiedAccounts(conn);
     await resetSerialSequences(conn);
 
     await conn.commit();
@@ -311,6 +306,27 @@ async function seedDemoData(conn, demoPasswordHash) {
            AND al.action = 'candidate.created'
        )`
   );
+}
+
+async function deleteUnverifiedAccounts(conn) {
+  await conn.query(`
+    DELETE FROM companies c
+    WHERE c.id <> 1
+      AND EXISTS (
+        SELECT 1
+        FROM users u
+        WHERE u.company_id = c.id
+          AND u.email_verified_at IS NULL
+          AND u.deleted_at IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM users u
+        WHERE u.company_id = c.id
+          AND u.email_verified_at IS NOT NULL
+          AND u.deleted_at IS NULL
+      )
+  `);
 }
 
 async function resetSerialSequences(conn) {

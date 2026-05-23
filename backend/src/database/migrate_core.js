@@ -54,10 +54,6 @@ async function migrateCore() {
       }
     }
 
-    await conn.query(
-      'UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email_verified_at IS NULL'
-    );
-
     await conn.query(`
       CREATE TABLE IF NOT EXISTS candidates (
         id                INT AUTO_INCREMENT PRIMARY KEY,
@@ -213,6 +209,25 @@ async function migrateCore() {
              AND al.action = 'candidate.created'
          )`
     );
+
+    await conn.query(`
+      DELETE c FROM companies c
+      WHERE c.id <> 1
+        AND EXISTS (
+          SELECT 1
+          FROM users u
+          WHERE u.company_id = c.id
+            AND u.email_verified_at IS NULL
+            AND u.deleted_at IS NULL
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM users u
+          WHERE u.company_id = c.id
+            AND u.email_verified_at IS NOT NULL
+            AND u.deleted_at IS NULL
+        )
+    `);
 
     await conn.commit();
     console.log('\nCore schema migration completed.');
