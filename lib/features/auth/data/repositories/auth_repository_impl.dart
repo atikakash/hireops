@@ -72,6 +72,16 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return (AuthRegistrationResult(auth: model.toEntity()), null);
     } on AppException catch (e) {
+      if (e.statusCode == 409 && e.data?['needsEmailVerification'] == true) {
+        return (
+          AuthRegistrationResult(
+            requiresEmailVerification: true,
+            verificationEmail: e.data?['email']?.toString() ?? email,
+            debugOtp: e.data?['debug_otp']?.toString(),
+          ),
+          null,
+        );
+      }
       return (null, _mapException(e));
     } on Object catch (e) {
       return (null, _mapUnexpectedError(e));
@@ -176,7 +186,7 @@ class AuthRepositoryImpl implements AuthRepository {
       403 => Failure.forbidden(message: e.message),
       404 => Failure.notFound(message: e.message),
       422 => Failure.validation(
-          message: e.message,
+          message: _buildValidationMessage(e),
           fieldErrors: _extractFieldErrors(e.data),
         ),
       500 => const Failure.server(),
@@ -184,6 +194,18 @@ class AuthRepositoryImpl implements AuthRepository {
           ? Failure.noInternet(message: e.message)
           : Failure.network(message: e.message, statusCode: e.statusCode),
     };
+  }
+
+  String _buildValidationMessage(AppException e) {
+    final fieldErrors = _extractFieldErrors(e.data);
+    if (fieldErrors == null || fieldErrors.isEmpty) {
+      return e.message;
+    }
+
+    return fieldErrors.values
+        .expand((messages) => messages)
+        .where((message) => message.trim().isNotEmpty)
+        .join('\n');
   }
 
   Failure _mapUnexpectedError(Object error) {

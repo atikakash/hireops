@@ -108,11 +108,26 @@ async function register(req, res) {
     const normalizedCompanyEmail = value.company_email.toLowerCase();
 
     const [existingUsers] = await conn.query(
-      'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, email_verified_at FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [normalizedUserEmail]
     );
     if (existingUsers.length) {
       await conn.rollback();
+      if (!existingUsers[0].email_verified_at) {
+        const otpResult = await issueEmailVerificationOtp({
+          email: normalizedUserEmail,
+          name: value.name.trim(),
+        });
+
+        return res.status(409).json({
+          success: false,
+          message: 'Account already exists but email is not verified. We sent a new verification code.',
+          needsEmailVerification: true,
+          email: normalizedUserEmail,
+          ...(otpResult.debugOtp ? { debug_otp: otpResult.debugOtp } : {}),
+        });
+      }
+
       return res.status(422).json({
         success: false,
         message: 'Validation failed.',
