@@ -12,7 +12,8 @@ const { verifyEmailTransport } = require('./services/emailService');
 
 const app = express();
 const port = process.env.PORT || 3000;
-const mockMode = process.env.MOCK_MODE !== 'false';
+const mockMode =
+  process.env.MOCK_MODE === 'true' && !process.env.DATABASE_URL;
 
 app.set('trust proxy', 1);
 
