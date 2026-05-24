@@ -106,7 +106,7 @@ class DioClient {
 
   InterceptorsWrapper _errorInterceptor() => InterceptorsWrapper(
         onError: (error, handler) {
-          throw _mapDioError(error);
+          handler.reject(error.copyWith(error: _mapDioError(error)));
         },
       );
 

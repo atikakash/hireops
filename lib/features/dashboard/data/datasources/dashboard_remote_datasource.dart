@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:hireops/core/constants/api_constants.dart';
+import 'package:hireops/core/errors/failures.dart';
 import 'package:hireops/core/network/dio_client.dart';
 import 'package:hireops/features/dashboard/data/models/dashboard_model.dart';
 
@@ -9,6 +10,8 @@ abstract interface class DashboardRemoteDataSource {
 }
 
 class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
+  static const _dashboardTimeout = Duration(seconds: 20);
+
   final DioClient _dioClient;
 
   const DashboardRemoteDataSourceImpl(this._dioClient);
@@ -17,16 +20,26 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
 
   @override
   Future<DashboardStatsModel> getStats() async {
-    final response = await _dio.get(ApiConstants.dashboardStats);
+    final response = await _dio
+        .get(ApiConstants.dashboardStats)
+        .timeout(_dashboardTimeout, onTimeout: _dashboardTimeoutError);
     return DashboardStatsModel.fromJson(_extractStatsMap(response.data));
   }
 
   @override
   Future<List<RecentActivityModel>> getRecentActivity() async {
-    final response = await _dio.get(ApiConstants.recentActivity);
+    final response = await _dio
+        .get(ApiConstants.recentActivity)
+        .timeout(_dashboardTimeout, onTimeout: _dashboardTimeoutError);
     return _extractActivityList(response.data)
         .map(RecentActivityModel.fromJson)
         .toList();
+  }
+
+  Never _dashboardTimeoutError() {
+    throw const AppException(
+      message: 'The dashboard took too long to load. Please try again.',
+    );
   }
 
   Map<String, dynamic> _extractStatsMap(dynamic response) {

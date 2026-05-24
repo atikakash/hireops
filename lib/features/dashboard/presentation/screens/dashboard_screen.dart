@@ -13,11 +13,54 @@ import '../widgets/activity_feed_item.dart';
 import '../widgets/pipeline_bar_chart.dart';
 import '../widgets/stat_card.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with WidgetsBindingObserver {
+  DateTime? _lastResumeRefreshAt;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastRefresh = _lastResumeRefreshAt;
+    if (lastRefresh != null && now.difference(lastRefresh).inSeconds < 3) {
+      return;
+    }
+
+    _lastResumeRefreshAt = now;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      ref.invalidate(dashboardStatsProvider);
+      ref.invalidate(recentActivityFeedProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statsAsync = ref.watch(dashboardStatsProvider);
     final activityAsync = ref.watch(recentActivityFeedProvider);
     final showCombinedError = statsAsync.hasError && activityAsync.hasError;
