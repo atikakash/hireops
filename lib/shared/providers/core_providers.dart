@@ -57,6 +57,12 @@ class ApiBaseUrlNotifier extends Notifier<String> {
       return;
     }
 
+    if (ApiConstants.isLocalBaseUrl(stored) &&
+        !ApiConstants.isLocalBaseUrl(ApiConstants.baseUrl)) {
+      await ref.read(appConfigStorageProvider).clearApiBaseUrl();
+      return;
+    }
+
     state = stored;
   }
 }

@@ -8,9 +8,12 @@ class ApiConstants {
 
   static const String _baseUrlDev = 'http://localhost:3000';
   static const String _baseUrlAndroidEmulator = 'http://10.0.2.2:3000';
-  static const String _baseUrlProd = 'https://api.hireops.io';
+  static const String _baseUrlProd = 'https://hireops-api.onrender.com';
 
-  static const String _env = String.fromEnvironment('ENV', defaultValue: 'dev');
+  static const String _env = String.fromEnvironment(
+    'ENV',
+    defaultValue: kReleaseMode ? 'prod' : 'dev',
+  );
   static const String _baseUrlOverride = String.fromEnvironment('API_BASE_URL');
 
   static String get _fallbackBaseUrl {
@@ -27,6 +30,12 @@ class ApiConstants {
 
   static String get baseUrl =>
       _baseUrlOverride.isNotEmpty ? _baseUrlOverride : _fallbackBaseUrl;
+
+  static bool isLocalBaseUrl(String value) {
+    final uri = Uri.tryParse(value.trim());
+    final host = uri?.host.toLowerCase();
+    return host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
+  }
 
   // ── Auth ────────────────────────────────────────────────────────────────────
   static const String login = '/api/auth/login';

@@ -23,12 +23,12 @@ const getDashboardStats = async (req, res) => {
       success: true,
       data: {
         stats: {
-          totalCandidates: data.candidates.total,
-          activeJobs: data.jobs.open,
-          totalHired: data.candidates.hired,
-          totalRejected: data.candidates.rejected,
+          totalCandidates: toNumber(data.candidates.total),
+          activeJobs: toNumber(data.jobs.open),
+          totalHired: toNumber(data.candidates.hired),
+          totalRejected: toNumber(data.candidates.rejected),
           candidatesPerStage: data.pipeline_stages.reduce((acc, stage) => {
-            acc[stage.name] = stage.candidate_count;
+            acc[stage.name] = toNumber(stage.candidate_count);
             return acc;
           }, {}),
           recentActivity: data.recent_activity,
@@ -166,25 +166,25 @@ async function loadDashboardData(companyId) {
 
   return {
     candidates: {
-      total: candidateStats[0].total || 0,
-      new: candidateStats[0].new_count || 0,
-      active: candidateStats[0].active_count || 0,
-      hired: candidateStats[0].hired_count || 0,
-      rejected: candidateStats[0].rejected_count || 0,
-      added_today: candidateStats[0].added_today || 0,
-      added_this_week: candidateStats[0].added_this_week || 0,
+      total: toNumber(candidateStats[0].total),
+      new: toNumber(candidateStats[0].new_count),
+      active: toNumber(candidateStats[0].active_count),
+      hired: toNumber(candidateStats[0].hired_count),
+      rejected: toNumber(candidateStats[0].rejected_count),
+      added_today: toNumber(candidateStats[0].added_today),
+      added_this_week: toNumber(candidateStats[0].added_this_week),
     },
     jobs: {
-      total: jobStats[0].total || 0,
-      open: jobStats[0].open_count || 0,
-      closed: jobStats[0].closed_count || 0,
+      total: toNumber(jobStats[0].total),
+      open: toNumber(jobStats[0].open_count),
+      closed: toNumber(jobStats[0].closed_count),
     },
     pipeline_stages: stageStats.map((stage) => ({
       id: stage.id,
       name: stage.name,
       color: stage.color,
       order_index: stage.order_index,
-      candidate_count: stage.candidate_count || 0,
+      candidate_count: toNumber(stage.candidate_count),
     })),
     recent_activity: recentActivity.map(toRecentActivityItem),
     recent_candidates: recentCandidates,
@@ -227,7 +227,7 @@ function fillMissingDays(rows, days) {
   const map = {};
 
   rows.forEach((row) => {
-    map[row.date.toISOString().split('T')[0]] = row.count;
+    map[toIsoDateKey(row.date)] = toNumber(row.count);
   });
 
   for (let i = days - 1; i >= 0; i -= 1) {
@@ -238,6 +238,19 @@ function fillMissingDays(rows, days) {
   }
 
   return result;
+}
+
+function toNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toIsoDateKey(value) {
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
+
+  return new Date(value).toISOString().split('T')[0];
 }
 
 module.exports = {
