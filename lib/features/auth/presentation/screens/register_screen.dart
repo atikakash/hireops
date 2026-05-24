@@ -83,7 +83,7 @@ class RegisterScreen extends HookConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 30),
 
                 // Back button
                 IconButton(
@@ -94,8 +94,8 @@ class RegisterScreen extends HookConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                const Center(child: AppLogo(size: 44)),
-                const SizedBox(height: 32),
+                const Center(child: AppLogo(size: 58)),
+                const SizedBox(height: 28),
 
                 Text(
                   'Create your account',

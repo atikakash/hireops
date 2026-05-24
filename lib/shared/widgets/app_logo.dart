@@ -18,29 +18,26 @@ class AppLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryLight],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            color: isDark ? AppColors.surfaceVariantDark : Colors.white,
+            borderRadius: BorderRadius.circular(size * 0.22),
+            border: Border.all(
+              color: (isDark ? AppColors.outlineDark : AppColors.outlineLight)
+                  .withValues(alpha: 0.75),
             ),
-            borderRadius: BorderRadius.circular(size * 0.25),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: AppColors.primary.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-          child: Center(
-            child: Text(
-              'H',
-              style: TextStyle(
-                fontFamily: 'SpaceGrotesk',
-                fontSize: size * 0.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: EdgeInsets.all(size * 0.12),
+            child: Image.asset(
+              'assets/icons/hireops_launcher.png',
+              fit: BoxFit.contain,
             ),
           ),
         ),
@@ -52,7 +49,7 @@ class AppLogo extends StatelessWidget {
             fontSize: size * 0.42,
             fontWeight: FontWeight.w700,
             color: isDark ? Colors.white : AppColors.onSurfaceLight,
-            letterSpacing: -0.5,
+            letterSpacing: 0,
           ),
         ),
         if (showTagline) ...[

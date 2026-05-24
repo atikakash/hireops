@@ -7,6 +7,7 @@ import '../../../../core/constants/app_theme.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
+import '../../domain/entities/dashboard_entity.dart';
 import '../providers/dashboard_providers.dart';
 import '../widgets/activity_feed_item.dart';
 import '../widgets/pipeline_bar_chart.dart';
@@ -92,12 +93,14 @@ class DashboardScreen extends ConsumerWidget {
                         data: (stats) => Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _DashboardSummary(stats: stats),
+                            const SizedBox(height: 16),
                             GridView.count(
                               shrinkWrap: true,
                               crossAxisCount: 2,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 1.4,
+                              childAspectRatio: 1.32,
                               physics: const NeverScrollableScrollPhysics(),
                               children: [
                                 StatCard(
@@ -220,9 +223,160 @@ class DashboardScreen extends ConsumerWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning ☀️';
-    if (hour < 17) return 'Good afternoon 👋';
-    return 'Good evening 🌙';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+}
+
+class _DashboardSummary extends StatelessWidget {
+  final DashboardStats stats;
+
+  const _DashboardSummary({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalPipeline = stats.candidatesPerStage.values.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.45),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.auto_graph_rounded,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hiring overview',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$totalPipeline candidates moving through your pipeline',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.58),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Open jobs',
+                  value: '${stats.activeJobs}',
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Hired',
+                  value: '${stats.totalHired}',
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SummaryMetric(
+                  label: 'Rejected',
+                  value: '${stats.totalRejected}',
+                  color: AppColors.stageRejected,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.58),
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

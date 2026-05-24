@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
@@ -51,9 +52,9 @@ class LoginScreen extends HookConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 56),
-                const Center(child: AppLogo(size: 52, showTagline: true)),
-                const SizedBox(height: 48),
+                const SizedBox(height: 42),
+                const Center(child: AppLogo(size: 66, showTagline: true)),
+                const SizedBox(height: 38),
 
                 // Heading
                 Text(
@@ -126,28 +127,7 @@ class LoginScreen extends HookConsumerWidget {
                   onPressed: onLogin,
                   icon: Icons.login_rounded,
                 ),
-                const SizedBox(height: 32),
-
-                // Divider
-                Row(
-                  children: [
-                    const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'OR',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.4),
-                            ),
-                      ),
-                    ),
-                    const Expanded(child: Divider()),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
 
                 // Register prompt
                 Center(
@@ -172,15 +152,15 @@ class LoginScreen extends HookConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-
-                // Demo hint
-                _DemoCard(onTap: () {
-                  emailCtrl.text = 'admin@hireops.io';
-                  passwordCtrl.text = 'password123';
-                }),
-                const SizedBox(height: 16),
-                const _ServerConfigCard(),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 28),
+                  _DemoCard(onTap: () {
+                    emailCtrl.text = 'admin@hireops.io';
+                    passwordCtrl.text = 'password123';
+                  }),
+                  const SizedBox(height: 16),
+                  const _ServerConfigCard(),
+                ],
                 const SizedBox(height: 24),
               ],
             ),

@@ -91,11 +91,18 @@ class _JobCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color:
-                Theme.of(context).colorScheme.outline.withValues(alpha: 0.25),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.45),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.035),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +116,10 @@ class _JobCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isOpen
                         ? AppColors.primaryContainer
-                        : AppColors.outlineLight.withValues(alpha: 0.3),
+                        : Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -154,7 +164,10 @@ class _JobCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const Divider(height: 1),
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [

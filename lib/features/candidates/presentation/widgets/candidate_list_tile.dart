@@ -13,17 +13,24 @@ class CandidateListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => context.push('/candidates/${candidate.id}'),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color:
-                Theme.of(context).colorScheme.outline.withValues(alpha: 0.25),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.45),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.035),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -107,15 +114,15 @@ class _CandidateAvatar extends StatelessWidget {
       );
     }
     return CircleAvatar(
-      radius: 24,
-      backgroundColor: AppColors.primaryContainer,
+      radius: 25,
+      backgroundColor: AppColors.secondaryContainer,
       child: Text(
         initials.toUpperCase(),
         style: const TextStyle(
           fontFamily: 'SpaceGrotesk',
           fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: AppColors.primary,
+          color: AppColors.secondary,
         ),
       ),
     );
@@ -137,8 +144,11 @@ class _SkillsRow extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.surfaceSoftLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Text(
                   s,

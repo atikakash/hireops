@@ -53,20 +53,38 @@ class MainShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final borderColor =
+        Theme.of(context).colorScheme.outline.withValues(alpha: 0.55);
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => context.go(_tabs[i].path),
-        destinations: _tabs
-            .map(
-              (t) => NavigationDestination(
-                icon: Icon(t.icon),
-                selectedIcon: Icon(t.activeIcon),
-                label: t.label,
-              ),
-            )
-            .toList(),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).navigationBarTheme.backgroundColor,
+          border: Border(top: BorderSide(color: borderColor)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: index,
+            onDestinationSelected: (i) => context.go(_tabs[i].path),
+            destinations: _tabs
+                .map(
+                  (t) => NavigationDestination(
+                    icon: Icon(t.icon),
+                    selectedIcon: Icon(t.activeIcon),
+                    label: t.label,
+                  ),
+                )
+                .toList(),
+          ),
+        ),
       ),
     );
   }
