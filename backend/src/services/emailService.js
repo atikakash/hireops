@@ -220,11 +220,42 @@ async function sendMail({ to, subject, html }) {
   }
 }
 
+function passwordResetTemplate({ name, otp }) {
+  const body = `
+    <h2 style="margin:0 0 8px;color:#1A1A1A;font-size:20px;">Reset your password</h2>
+    <p style="margin:0 0 24px;color:#666;font-size:14px;">
+      Hi <strong>${name}</strong>, use this 6-digit code to reset your HireOps password.
+    </p>
+
+    <div style="background:#FFF7E6;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px;">
+      <p style="margin:0 0 8px;color:#C47A00;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+        Password reset code
+      </p>
+      <p style="margin:0;color:#1A1A1A;font-size:32px;font-weight:700;letter-spacing:6px;">
+        ${otp}
+      </p>
+    </div>
+
+    <p style="margin:0;color:#666;font-size:14px;">
+      This code expires in 10 minutes. If you did not request a password reset, you can ignore this email.
+    </p>`;
+
+  return baseTemplate('Reset your HireOps password', body);
+}
+
 async function sendEmailVerificationOtp({ to, name, otp }) {
   return sendMail({
     to,
     subject: 'Verify your HireOps email',
     html: emailVerificationTemplate({ name, otp }),
+  });
+}
+
+async function sendPasswordResetOtp({ to, name, otp }) {
+  return sendMail({
+    to,
+    subject: 'Reset your HireOps password',
+    html: passwordResetTemplate({ name, otp }),
   });
 }
 
@@ -297,6 +328,7 @@ async function notifyStageMoved({ db, companyId, candidateName, jobTitle, fromSt
 module.exports = {
   sendMail,
   sendEmailVerificationOtp,
+  sendPasswordResetOtp,
   verifyEmailTransport,
   notifyCVUploaded,
   notifyStageMoved,

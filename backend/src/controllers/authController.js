@@ -15,7 +15,10 @@ const {
   getPendingRegistration,
   consumePendingRegistration,
 } = require('../auth/sessionStore');
-const { sendEmailVerificationOtp } = require('../services/emailService');
+const {
+  sendEmailVerificationOtp,
+  sendPasswordResetOtp,
+} = require('../services/emailService');
 
 const loginSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(255).required(),
@@ -307,19 +310,35 @@ async function forgotPassword(req, res) {
 
   try {
     const [rows] = await db.query(
-      'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
+      'SELECT id, name, email FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1',
       [value.email.toLowerCase()]
     );
 
-    const otp = '123456';
-    if (rows.length) {
-      savePasswordResetOtp(value.email, otp);
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account was found for that email address.',
+      });
     }
+
+    const otp = createOtp();
+    savePasswordResetOtp(rows[0].email, otp);
+    const sent = await withTimeout(
+      sendPasswordResetOtp({
+        to: rows[0].email,
+        name: rows[0].name || 'there',
+        otp,
+      }),
+      Number(process.env.MAIL_TIMEOUT_MS || 5000),
+      false
+    );
 
     return res.json({
       success: true,
-      message: 'If that email exists, a reset OTP has been sent.',
-      debug_otp: otp,
+      message: sent
+        ? 'Password reset OTP sent to your email.'
+        : 'Email could not be sent. Use the temporary OTP shown here.',
+      ...(sent ? {} : { debug_otp: otp }),
     });
   } catch (err) {
     console.error('forgotPassword error:', err);
