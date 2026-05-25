@@ -1,9 +1,6 @@
 const db = require('../config/database');
 const { notifyCVUploaded } = require('../services/emailService');
 
-const DEMO_PDF_URL =
-  'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
-
 async function uploadCv(req, res) {
   const conn = await db.getConnection();
 
@@ -12,6 +9,7 @@ async function uploadCv(req, res) {
     const fileName = file?.originalname || 'uploaded-cv.pdf';
     const mimeType = file?.mimetype || 'application/pdf';
     const sizeBytes = file?.size || 0;
+    const fileData = file?.buffer || null;
     const candidateName = normalizeOptional(req.body.name) || nameFromFile(fileName);
     const candidateEmail =
       normalizeOptional(req.body.email)?.toLowerCase() ||
@@ -42,17 +40,27 @@ async function uploadCv(req, res) {
 
     const [result] = await conn.query(
       `INSERT INTO cvs
-        (company_id, candidate_id, original_name, stored_name, file_path, mime_type, size_bytes)
+        (company_id, candidate_id, original_name, stored_name, file_data, mime_type, size_bytes)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         req.user.companyId,
         candidateId,
         fileName,
         `${Date.now()}-${fileName}`,
-        DEMO_PDF_URL,
+        fileData,
         mimeType,
         sizeBytes,
       ]
+    );
+
+    const cvId = result.insertId;
+    const fileUrl = buildFileUrl(req, cvId);
+
+    await conn.query(
+      `UPDATE cvs
+       SET file_path = ?
+       WHERE id = ? AND company_id = ?`,
+      [fileUrl, cvId, req.user.companyId]
     );
 
     await conn.query(
@@ -64,7 +72,7 @@ async function uploadCv(req, res) {
     await conn.query(
       `INSERT INTO activity_logs (company_id, user_id, entity_type, entity_id, action, description)
        VALUES (?, ?, 'cv', ?, 'cv.uploaded', ?)`,
-      [req.user.companyId, req.user.userId, result.insertId, `Uploaded CV: ${fileName}`]
+      [req.user.companyId, req.user.userId, cvId, `Uploaded CV: ${fileName}`]
     );
 
     await conn.commit();
@@ -81,9 +89,9 @@ async function uploadCv(req, res) {
       success: true,
       data: {
         cv: {
-          id: String(result.insertId),
+          id: String(cvId),
           fileName,
-          fileUrl: DEMO_PDF_URL,
+          fileUrl,
           fileSizeBytes: sizeBytes,
           mimeType,
           candidateId: String(candidateId),
@@ -98,8 +106,8 @@ async function uploadCv(req, res) {
           skills,
           tags: tags.length ? tags : ['cv-upload'],
           currentStage: 'applied',
-          cvUrl: DEMO_PDF_URL,
-          cvId: String(result.insertId),
+          cvUrl: fileUrl,
+          cvId: String(cvId),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         },
@@ -141,9 +149,16 @@ async function getDownloadUrl(req, res) {
       [req.params.id, req.user.companyId]
     );
 
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'CV was not found.',
+      });
+    }
+
     return res.json({
       success: true,
-      data: { url: rows[0]?.file_path || DEMO_PDF_URL },
+      data: { url: rows[0]?.file_path || buildFileUrl(req, req.params.id) },
     });
   } catch (err) {
     console.error('getDownloadUrl error:', err);
@@ -154,9 +169,58 @@ async function getDownloadUrl(req, res) {
   }
 }
 
+async function streamCvFile(req, res) {
+  try {
+    const [rows] = await db.query(
+      `SELECT original_name, file_path, file_data, mime_type
+       FROM cvs
+       WHERE id = ? AND company_id = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [req.params.id, req.user.companyId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'CV was not found.',
+      });
+    }
+
+    const cv = rows[0];
+    if (!cv.file_data && cv.file_path) {
+      return res.redirect(cv.file_path);
+    }
+
+    if (!cv.file_data) {
+      return res.status(404).json({
+        success: false,
+        message: 'CV file is missing.',
+      });
+    }
+
+    const fileName = sanitizeDownloadName(cv.original_name || 'cv.pdf');
+    const fileBuffer = Buffer.isBuffer(cv.file_data)
+      ? cv.file_data
+      : Buffer.from(cv.file_data);
+
+    res.setHeader('Content-Type', cv.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Length', fileBuffer.length);
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return res.send(fileBuffer);
+  } catch (err) {
+    console.error('streamCvFile error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load CV file.',
+    });
+  }
+}
+
 module.exports = {
   uploadCv,
   getDownloadUrl,
+  streamCvFile,
 };
 
 function nameFromFile(fileName) {
@@ -219,4 +283,15 @@ function parseList(value) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function buildFileUrl(req, cvId) {
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+  return `${protocol}://${req.get('host')}/api/cv/${cvId}/file`;
+}
+
+function sanitizeDownloadName(fileName) {
+  return String(fileName)
+    .replace(/["\r\n\\]/g, '_')
+    .slice(0, 180) || 'cv.pdf';
 }

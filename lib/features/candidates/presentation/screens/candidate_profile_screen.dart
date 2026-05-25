@@ -1,12 +1,18 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_theme.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../shared/providers/core_providers.dart';
 import '../../../../shared/widgets/banners.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
@@ -58,6 +64,7 @@ class _ProfileBody extends HookWidget {
   Widget build(BuildContext context) {
     final noteCtrl = useTextEditingController();
     final showNoteField = useState(false);
+    final isDownloadingCv = useState(false);
 
     Future<void> addNote() async {
       if (noteCtrl.text.trim().isEmpty) return;
@@ -77,6 +84,46 @@ class _ProfileBody extends HookWidget {
       await ref
           .read(candidateFormNotifierProvider.notifier)
           .deleteNote(candidate.id, noteId);
+    }
+
+    Future<void> downloadCv() async {
+      final cvUrl = candidate.cvUrl;
+      if (cvUrl == null || cvUrl.isEmpty || isDownloadingCv.value) return;
+
+      isDownloadingCv.value = true;
+      try {
+        final response = await ref.read(dioClientProvider).client.get<List<int>>(
+              cvUrl,
+              options: Options(responseType: ResponseType.bytes),
+            );
+        final bytes = response.data;
+        if (bytes == null || bytes.isEmpty) {
+          throw Exception('Downloaded file was empty.');
+        }
+
+        final dir = await getApplicationDocumentsDirectory();
+        final fileName = _fileNameFromHeaders(response) ?? 'hireops-cv.pdf';
+        final file = File('${dir.path}${Platform.pathSeparator}$fileName');
+        await file.writeAsBytes(bytes, flush: true);
+        await OpenFilex.open(file.path);
+
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CV downloaded.')),
+        );
+      } on Object catch (err) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $err'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      } finally {
+        if (context.mounted) {
+          isDownloadingCv.value = false;
+        }
+      }
     }
 
     final initials = candidate.name
@@ -264,9 +311,18 @@ class _ProfileBody extends HookWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.download_outlined, size: 18),
+                          icon: isDownloadingCv.value
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.download_outlined, size: 18),
                           label: const Text('Download CV'),
-                          onPressed: () {/* trigger download */},
+                          onPressed:
+                              isDownloadingCv.value ? null : downloadCv,
                         ),
                       ),
                     ],
@@ -721,4 +777,17 @@ class _ProfileShimmer extends StatelessWidget {
       ],
     );
   }
+}
+
+String? _fileNameFromHeaders(Response<List<int>> response) {
+  final disposition = response.headers.value('content-disposition');
+  final match = disposition == null
+      ? null
+      : RegExp(r'filename="?([^";]+)"?').firstMatch(disposition);
+  final rawName = match?.group(1);
+  if (rawName == null || rawName.trim().isEmpty) {
+    return null;
+  }
+
+  return rawName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
 }

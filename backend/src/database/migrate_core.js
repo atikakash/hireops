@@ -83,6 +83,7 @@ async function migrateCore() {
         original_name  VARCHAR(255) NOT NULL,
         stored_name    VARCHAR(255),
         file_path      VARCHAR(500),
+        file_data      LONGBLOB,
         mime_type      VARCHAR(150),
         size_bytes     INT,
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -93,6 +94,14 @@ async function migrateCore() {
       )
     `);
     console.log('OK cvs table ready');
+
+    try {
+      await conn.query('ALTER TABLE cvs ADD COLUMN file_data LONGBLOB');
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        throw err;
+      }
+    }
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS activity_logs (

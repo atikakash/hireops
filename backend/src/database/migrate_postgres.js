@@ -79,11 +79,17 @@ async function migratePostgres() {
         original_name  VARCHAR(255) NOT NULL,
         stored_name    VARCHAR(255),
         file_path      VARCHAR(500),
+        file_data      BYTEA,
         mime_type      VARCHAR(150),
         size_bytes     INTEGER,
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         deleted_at     TIMESTAMP NULL
       )
+    `);
+
+    await conn.query(`
+      ALTER TABLE cvs
+      ADD COLUMN IF NOT EXISTS file_data BYTEA
     `);
 
     await conn.query(`

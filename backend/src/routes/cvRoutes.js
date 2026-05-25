@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { authenticate } = require('../middleware/authMiddleware');
 const { validateUploadedFile } = require('../middleware/securityMiddleware');
-const { uploadCv, getDownloadUrl } = require('../controllers/cvController');
+const { uploadCv, getDownloadUrl, streamCvFile } = require('../controllers/cvController');
 
 const router = express.Router();
 const upload = multer({
@@ -14,5 +14,6 @@ router.use(authenticate);
 
 router.post('/upload', upload.single('file'), validateUploadedFile, uploadCv);
 router.get('/:id/download', getDownloadUrl);
+router.get('/:id/file', streamCvFile);
 
 module.exports = router;
