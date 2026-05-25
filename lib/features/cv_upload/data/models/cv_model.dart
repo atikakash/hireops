@@ -48,11 +48,33 @@ class CvRemoteDataSource {
   Future<CvModel> uploadCv({
     required List<int> bytes,
     required String fileName,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? experienceYears,
+    String? skills,
+    String? tags,
     void Function(double progress)? onProgress,
   }) async {
-    final formData = FormData.fromMap({
+    final fields = <String, dynamic>{
       'file': MultipartFile.fromBytes(bytes, filename: fileName),
-    });
+    };
+
+    void addIfPresent(String key, String? value) {
+      final normalized = value?.trim();
+      if (normalized != null && normalized.isNotEmpty) {
+        fields[key] = normalized;
+      }
+    }
+
+    addIfPresent('name', candidateName);
+    addIfPresent('email', candidateEmail);
+    addIfPresent('phone', candidatePhone);
+    addIfPresent('experienceYears', experienceYears);
+    addIfPresent('skills', skills);
+    addIfPresent('tags', tags);
+
+    final formData = FormData.fromMap(fields);
 
     final response = await _dio.post(
       ApiConstants.cvUpload,
@@ -122,12 +144,24 @@ class CvRepositoryImpl implements CvRepository {
     required List<int> bytes,
     required String fileName,
     required int fileSizeBytes,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? experienceYears,
+    String? skills,
+    String? tags,
     void Function(double progress)? onProgress,
   }) async {
     try {
       final model = await _ds.uploadCv(
         bytes: bytes,
         fileName: fileName,
+        candidateName: candidateName,
+        candidateEmail: candidateEmail,
+        candidatePhone: candidatePhone,
+        experienceYears: experienceYears,
+        skills: skills,
+        tags: tags,
         onProgress: onProgress,
       );
       return (model.toEntity(), null);

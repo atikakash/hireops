@@ -56,6 +56,12 @@ class CvUploadNotifier extends _$CvUploadNotifier {
     required List<int> bytes,
     required String fileName,
     required int fileSizeBytes,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? experienceYears,
+    String? skills,
+    String? tags,
   }) async {
     state = state.copyWith(
       selectedFileName: fileName,
@@ -70,6 +76,12 @@ class CvUploadNotifier extends _$CvUploadNotifier {
       bytes: bytes,
       fileName: fileName,
       fileSizeBytes: fileSizeBytes,
+      candidateName: candidateName,
+      candidateEmail: candidateEmail,
+      candidatePhone: candidatePhone,
+      experienceYears: experienceYears,
+      skills: skills,
+      tags: tags,
       onProgress: (progress) => state = state.copyWith(
         status: UploadStatus.uploading,
         progress: progress,

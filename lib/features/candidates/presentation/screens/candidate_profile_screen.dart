@@ -92,10 +92,11 @@ class _ProfileBody extends HookWidget {
 
       isDownloadingCv.value = true;
       try {
-        final response = await ref.read(dioClientProvider).client.get<List<int>>(
-              cvUrl,
-              options: Options(responseType: ResponseType.bytes),
-            );
+        final response =
+            await ref.read(dioClientProvider).client.get<List<int>>(
+                  cvUrl,
+                  options: Options(responseType: ResponseType.bytes),
+                );
         final bytes = response.data;
         if (bytes == null || bytes.isEmpty) {
           throw Exception('Downloaded file was empty.');
@@ -321,8 +322,7 @@ class _ProfileBody extends HookWidget {
                                 )
                               : const Icon(Icons.download_outlined, size: 18),
                           label: const Text('Download CV'),
-                          onPressed:
-                              isDownloadingCv.value ? null : downloadCv,
+                          onPressed: isDownloadingCv.value ? null : downloadCv,
                         ),
                       ),
                     ],

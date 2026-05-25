@@ -6,6 +6,12 @@ abstract interface class CvRepository {
     required List<int> bytes,
     required String fileName,
     required int fileSizeBytes,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? experienceYears,
+    String? skills,
+    String? tags,
     void Function(double progress)? onProgress,
   });
 

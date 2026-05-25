@@ -20,6 +20,12 @@ class CvUploadScreen extends HookConsumerWidget {
     final uploadState = ref.watch(cvUploadNotifierProvider);
     final notifier = ref.read(cvUploadNotifierProvider.notifier);
     final selectedFile = useState<PlatformFile?>(null);
+    final nameCtrl = useTextEditingController();
+    final emailCtrl = useTextEditingController();
+    final phoneCtrl = useTextEditingController();
+    final experienceCtrl = useTextEditingController();
+    final skillsCtrl = useTextEditingController();
+    final tagsCtrl = useTextEditingController();
 
     Future<void> pickFile() async {
       final result = await FilePicker.platform.pickFiles(
@@ -51,6 +57,12 @@ class CvUploadScreen extends HookConsumerWidget {
         bytes: file.bytes!,
         fileName: file.name,
         fileSizeBytes: file.size,
+        candidateName: nameCtrl.text,
+        candidateEmail: emailCtrl.text,
+        candidatePhone: phoneCtrl.text,
+        experienceYears: experienceCtrl.text,
+        skills: skillsCtrl.text,
+        tags: tagsCtrl.text,
       );
 
       if (entity != null && context.mounted) {
@@ -66,179 +78,192 @@ class CvUploadScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Upload CV')),
       body: SafeArea(
-        child: Padding(
+        child: ListView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppStrings.uploadYourCv,
-                style: Theme.of(context).textTheme.displayMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                AppStrings.cvUploadSubtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.5),
-                    ),
-              ),
-              const SizedBox(height: 32),
-              GestureDetector(
-                onTap: uploadState.status == UploadStatus.uploading
-                    ? null
-                    : pickFile,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
+          children: [
+            Text(
+              AppStrings.uploadYourCv,
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              AppStrings.cvUploadSubtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.5),
+                  ),
+            ),
+            const SizedBox(height: 32),
+            GestureDetector(
+              onTap: uploadState.status == UploadStatus.uploading
+                  ? null
+                  : pickFile,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: double.infinity,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: uploadState.selectedFileName != null
+                      ? AppColors.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
                     color: uploadState.selectedFileName != null
-                        ? AppColors.primaryContainer
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
+                        ? AppColors.primary.withValues(alpha: 0.5)
+                        : Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      uploadState.selectedFileName != null
+                          ? _fileIcon(uploadState.selectedFileName!)
+                          : Icons.upload_file_outlined,
+                      size: 52,
                       color: uploadState.selectedFileName != null
-                          ? AppColors.primary.withValues(alpha: 0.5)
+                          ? AppColors.primary
                           : Theme.of(context)
                               .colorScheme
-                              .outline
+                              .onSurface
                               .withValues(alpha: 0.3),
-                      width: 2,
                     ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        uploadState.selectedFileName != null
-                            ? _fileIcon(uploadState.selectedFileName!)
-                            : Icons.upload_file_outlined,
-                        size: 52,
-                        color: uploadState.selectedFileName != null
-                            ? AppColors.primary
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.3),
+                    const SizedBox(height: 12),
+                    if (uploadState.selectedFileName != null) ...[
+                      Text(
+                        uploadState.selectedFileName!,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryDark,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 12),
-                      if (uploadState.selectedFileName != null) ...[
+                      if (uploadState.selectedFileSizeBytes != null)
                         Text(
-                          uploadState.selectedFileName!,
+                          AppFileHelper.formatBytes(
+                            uploadState.selectedFileSizeBytes!,
+                          ),
                           style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryDark,
-                            fontSize: 14,
+                            fontSize: 12,
+                            color: AppColors.primary,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
                         ),
-                        if (uploadState.selectedFileSizeBytes != null)
-                          Text(
-                            AppFileHelper.formatBytes(
-                              uploadState.selectedFileSizeBytes!,
+                    ] else ...[
+                      Text(
+                        'Tap to browse files',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.45),
                             ),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primary,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'PDF, DOC, DOCX up to 5 MB',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.3),
                             ),
-                          ),
-                      ] else ...[
-                        Text(
-                          'Tap to browse files',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.45),
-                                  ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'PDF, DOC, DOCX up to 5 MB',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.3),
-                                  ),
-                        ),
-                      ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
+            const SizedBox(height: 20),
+            if (uploadState.selectedFileName != null) ...[
+              _CandidateDetailsFields(
+                nameCtrl: nameCtrl,
+                emailCtrl: emailCtrl,
+                phoneCtrl: phoneCtrl,
+                experienceCtrl: experienceCtrl,
+                skillsCtrl: skillsCtrl,
+                tagsCtrl: tagsCtrl,
+                enabled: uploadState.status != UploadStatus.uploading &&
+                    uploadState.status != UploadStatus.validating,
+              ),
               const SizedBox(height: 20),
-              if (uploadState.errorMessage != null)
-                ErrorBanner(
-                  message: uploadState.errorMessage!,
-                  onDismiss: notifier.reset,
-                ),
-              if (uploadState.status == UploadStatus.success)
-                const SuccessBanner(message: AppStrings.cvUploadSuccess),
-              if (uploadState.status == UploadStatus.uploading ||
-                  uploadState.status == UploadStatus.validating) ...[
-                const SizedBox(height: 8),
-                _ProgressSection(
-                  progress: uploadState.progress,
-                  label: uploadState.status == UploadStatus.validating
-                      ? 'Validating...'
-                      : 'Uploading... ${(uploadState.progress * 100).toStringAsFixed(0)}%',
-                ),
-              ],
-              const Spacer(),
-              const _FileTypeLegend(),
-              const SizedBox(height: 20),
-              if (uploadState.status == UploadStatus.success) ...[
-                PrimaryButton(
-                  label: 'Upload Another',
-                  onPressed: () {
-                    selectedFile.value = null;
-                    notifier.reset();
-                  },
-                  icon: Icons.upload_file_outlined,
-                ),
-                const SizedBox(height: 12),
-                SecondaryButton(
-                  label: 'Go to Candidates',
-                  onPressed: () => context.go('/candidates'),
-                  icon: Icons.people_outline,
-                ),
-              ] else ...[
-                if (uploadState.selectedFileName == null)
-                  PrimaryButton(
-                    label: AppStrings.browseFile,
-                    onPressed: pickFile,
-                    icon: Icons.folder_open_outlined,
-                  )
-                else
-                  Column(
-                    children: [
-                      PrimaryButton(
-                        label: 'Upload CV',
-                        isLoading:
-                            uploadState.status == UploadStatus.uploading ||
-                                uploadState.status == UploadStatus.validating,
-                        onPressed: upload,
-                        icon: Icons.cloud_upload_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      SecondaryButton(
-                        label: 'Choose Different File',
-                        onPressed: pickFile,
-                        icon: Icons.swap_horiz,
-                      ),
-                    ],
-                  ),
-              ],
             ],
-          ),
+            if (uploadState.errorMessage != null)
+              ErrorBanner(
+                message: uploadState.errorMessage!,
+                onDismiss: notifier.reset,
+              ),
+            if (uploadState.status == UploadStatus.success)
+              const SuccessBanner(message: AppStrings.cvUploadSuccess),
+            if (uploadState.status == UploadStatus.uploading ||
+                uploadState.status == UploadStatus.validating) ...[
+              const SizedBox(height: 8),
+              _ProgressSection(
+                progress: uploadState.progress,
+                label: uploadState.status == UploadStatus.validating
+                    ? 'Validating...'
+                    : 'Uploading... ${(uploadState.progress * 100).toStringAsFixed(0)}%',
+              ),
+            ],
+            const SizedBox(height: 24),
+            const _FileTypeLegend(),
+            const SizedBox(height: 20),
+            if (uploadState.status == UploadStatus.success) ...[
+              PrimaryButton(
+                label: 'Upload Another',
+                onPressed: () {
+                  selectedFile.value = null;
+                  nameCtrl.clear();
+                  emailCtrl.clear();
+                  phoneCtrl.clear();
+                  experienceCtrl.clear();
+                  skillsCtrl.clear();
+                  tagsCtrl.clear();
+                  notifier.reset();
+                },
+                icon: Icons.upload_file_outlined,
+              ),
+              const SizedBox(height: 12),
+              SecondaryButton(
+                label: 'Go to Candidates',
+                onPressed: () => context.go('/candidates'),
+                icon: Icons.people_outline,
+              ),
+            ] else ...[
+              if (uploadState.selectedFileName == null)
+                PrimaryButton(
+                  label: AppStrings.browseFile,
+                  onPressed: pickFile,
+                  icon: Icons.folder_open_outlined,
+                )
+              else
+                Column(
+                  children: [
+                    PrimaryButton(
+                      label: 'Upload CV',
+                      isLoading: uploadState.status == UploadStatus.uploading ||
+                          uploadState.status == UploadStatus.validating,
+                      onPressed: upload,
+                      icon: Icons.cloud_upload_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    SecondaryButton(
+                      label: 'Choose Different File',
+                      onPressed: pickFile,
+                      icon: Icons.swap_horiz,
+                    ),
+                  ],
+                ),
+            ],
+          ],
         ),
       ),
     );
@@ -251,6 +276,114 @@ class CvUploadScreen extends HookConsumerWidget {
       'doc' || 'docx' => Icons.description_outlined,
       _ => Icons.insert_drive_file_outlined,
     };
+  }
+}
+
+class _CandidateDetailsFields extends StatelessWidget {
+  final TextEditingController nameCtrl;
+  final TextEditingController emailCtrl;
+  final TextEditingController phoneCtrl;
+  final TextEditingController experienceCtrl;
+  final TextEditingController skillsCtrl;
+  final TextEditingController tagsCtrl;
+  final bool enabled;
+
+  const _CandidateDetailsFields({
+    required this.nameCtrl,
+    required this.emailCtrl,
+    required this.phoneCtrl,
+    required this.experienceCtrl,
+    required this.skillsCtrl,
+    required this.tagsCtrl,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Candidate details',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: nameCtrl,
+          enabled: enabled,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            prefixIcon: Icon(Icons.person_outline),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: emailCtrl,
+          enabled: enabled,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Email',
+            prefixIcon: Icon(Icons.mail_outline),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: phoneCtrl,
+                enabled: enabled,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: experienceCtrl,
+                enabled: enabled,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Years',
+                  prefixIcon: Icon(Icons.work_history_outlined),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: skillsCtrl,
+          enabled: enabled,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Skills',
+            hintText: 'Flutter, Node.js, Sales',
+            prefixIcon: Icon(Icons.psychology_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: tagsCtrl,
+          enabled: enabled,
+          decoration: const InputDecoration(
+            labelText: 'Tags',
+            hintText: 'Frontend, Senior, Remote',
+            prefixIcon: Icon(Icons.label_outline),
+          ),
+        ),
+      ],
+    );
   }
 }
 

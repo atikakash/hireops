@@ -12,6 +12,12 @@ class UploadCvUseCase {
     required List<int> bytes,
     required String fileName,
     required int fileSizeBytes,
+    String? candidateName,
+    String? candidateEmail,
+    String? candidatePhone,
+    String? experienceYears,
+    String? skills,
+    String? tags,
     void Function(double progress)? onProgress,
   }) async {
     final extensionError = AppValidators.cvExtension(fileName);
@@ -28,6 +34,12 @@ class UploadCvUseCase {
       bytes: bytes,
       fileName: fileName,
       fileSizeBytes: fileSizeBytes,
+      candidateName: candidateName,
+      candidateEmail: candidateEmail,
+      candidatePhone: candidatePhone,
+      experienceYears: experienceYears,
+      skills: skills,
+      tags: tags,
       onProgress: onProgress,
     );
   }
