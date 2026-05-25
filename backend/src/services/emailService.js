@@ -263,6 +263,10 @@ async function sendPasswordResetOtp({ to, name, otp }) {
  * Task 20: Notify all admin users when a CV is uploaded.
  */
 async function notifyCVUploaded({ db, companyId, candidateName, fileName, uploadedByName }) {
+  if (!(await notificationEnabled(db, companyId, 'notify_cv_upload'))) {
+    return;
+  }
+
   // Fetch company name + all admin emails
   const [company] = await db.query(
     'SELECT name FROM companies WHERE id = ? LIMIT 1', [companyId]
@@ -295,6 +299,10 @@ async function notifyCVUploaded({ db, companyId, candidateName, fileName, upload
  * Task 21: Notify all admin users when a candidate changes stage.
  */
 async function notifyStageMoved({ db, companyId, candidateName, jobTitle, fromStage, toStage, stageColor, movedByName }) {
+  if (!(await notificationEnabled(db, companyId, 'notify_stage_change'))) {
+    return;
+  }
+
   const [company] = await db.query(
     'SELECT name FROM companies WHERE id = ? LIMIT 1', [companyId]
   );
@@ -323,6 +331,22 @@ async function notifyStageMoved({ db, companyId, candidateName, jobTitle, fromSt
       html,
     });
   }
+}
+
+async function notificationEnabled(db, companyId, column) {
+  const [rows] = await db.query(
+    `SELECT ${column}, email_notifications
+     FROM notification_settings
+     WHERE company_id = ?
+     LIMIT 1`,
+    [companyId]
+  );
+
+  if (!rows.length) {
+    return true;
+  }
+
+  return rows[0].email_notifications !== 0 && rows[0][column] !== 0;
 }
 
 module.exports = {

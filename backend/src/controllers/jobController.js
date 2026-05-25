@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const db  = require('../config/database');
 const { getStages } = require('../helpers/pipelineHelper');
+const { notifyStageMoved } = require('../services/emailService');
 
 // ── Validation ────────────────────────────────────────────────────────────────
 const jobSchema = Joi.object({
@@ -412,6 +413,18 @@ const moveCandidateStage = async (req, res) => {
     );
     if (!sRows.length) return res.status(404).json({ success: false, message: 'Stage not found.' });
 
+    const [candidateRows] = await db.query(
+      `SELECT c.name, j.title AS job_title,
+              ps.name AS previous_stage
+       FROM job_candidates jc
+       JOIN candidates c ON c.id = jc.candidate_id
+       JOIN jobs j ON j.id = jc.job_id
+       LEFT JOIN pipeline_stages ps ON ps.id = jc.stage_id
+       WHERE jc.job_id=? AND jc.candidate_id=? AND jc.company_id=?
+       LIMIT 1`,
+      [req.params.id, req.params.candidateId, req.user.companyId]
+    );
+
     const [result] = await db.query(
       `UPDATE job_candidates SET stage_id=?, notes=?, updated_at=NOW()
        WHERE job_id=? AND candidate_id=? AND company_id=?`,
@@ -421,6 +434,29 @@ const moveCandidateStage = async (req, res) => {
 
     if (!result.affectedRows) {
       return res.status(404).json({ success: false, message: 'Assignment not found.' });
+    }
+
+    await db.query(
+      `INSERT INTO activity_logs (company_id, user_id, entity_type, entity_id, action, description)
+       VALUES (?, ?, 'candidate', ?, 'candidate.stage_moved', ?)`,
+      [
+        req.user.companyId,
+        req.user.userId,
+        req.params.candidateId,
+        `Candidate moved to ${sRows[0].name}`,
+      ]
+    );
+
+    if (candidateRows.length) {
+      notifyStageMoved({
+        db,
+        companyId: req.user.companyId,
+        candidateName: candidateRows[0].name,
+        jobTitle: candidateRows[0].job_title || 'Job pipeline',
+        fromStage: candidateRows[0].previous_stage || null,
+        toStage: sRows[0].name,
+        movedByName: req.user.name || 'A team member',
+      }).catch((err) => console.error('notifyStageMoved error:', err));
     }
 
     return res.json({

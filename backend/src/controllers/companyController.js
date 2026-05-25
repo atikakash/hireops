@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const db = require('../config/database');
+const { hashPassword } = require('../auth/passwords');
 
 const companySchema = Joi.object({
   name: Joi.string().max(255).required(),
@@ -8,6 +9,13 @@ const companySchema = Joi.object({
   website: Joi.string().uri().max(255).allow('', null),
   industry: Joi.string().max(100).allow('', null),
   address: Joi.string().max(500).allow('', null),
+});
+
+const memberSchema = Joi.object({
+  name: Joi.string().max(255).required(),
+  email: Joi.string().trim().lowercase().email().max(255).required(),
+  role: Joi.string().valid('admin', 'recruiter').default('recruiter'),
+  password: Joi.string().min(8).max(128).required(),
 });
 
 async function getCompany(req, res) {
@@ -97,6 +105,63 @@ async function getMembers(req, res) {
   }
 }
 
+async function createMember(req, res) {
+  const { error, value } = memberSchema.validate(req.body, {
+    abortEarly: false,
+  });
+  if (error) {
+    return validationFailed(res, error);
+  }
+
+  try {
+    const [result] = await db.query(
+      `INSERT INTO users (company_id, name, email, password_hash, role, email_verified_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [
+        req.user.companyId,
+        value.name.trim(),
+        value.email.toLowerCase(),
+        hashPassword(value.password),
+        value.role,
+      ]
+    );
+
+    await db.query(
+      `INSERT INTO activity_logs (company_id, user_id, entity_type, entity_id, action, description)
+       VALUES (?, ?, 'user', ?, 'team.member_created', ?)`,
+      [
+        req.user.companyId,
+        req.user.userId,
+        result.insertId,
+        `Team member added: ${value.name.trim()} (${value.role})`,
+      ]
+    );
+
+    const members = await loadMembers(req.user.companyId);
+    const member = members.find((item) => item.id === String(result.insertId));
+
+    return res.status(201).json({
+      success: true,
+      message: 'Team member created.',
+      data: { member, members },
+    });
+  } catch (err) {
+    if (err && (err.code === 'ER_DUP_ENTRY' || err.code === '23505')) {
+      return res.status(422).json({
+        success: false,
+        message: 'Validation failed.',
+        errors: { email: ['Email is already registered.'] },
+      });
+    }
+
+    console.error('createMember error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create team member.',
+    });
+  }
+}
+
 async function loadMembers(companyId) {
   const [rows] = await db.query(
     `SELECT id, name, email, role
@@ -140,4 +205,5 @@ module.exports = {
   getCompany,
   updateCompany,
   getMembers,
+  createMember,
 };

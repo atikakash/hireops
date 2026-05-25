@@ -107,8 +107,34 @@ class SettingsScreen extends HookConsumerWidget {
                 _SettingsSection(
                   title: AppStrings.teamMembers,
                   icon: Icons.group_outlined,
-                  child: profileState.profile?.members.isEmpty ?? true
-                      ? Padding(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Admins can add recruiters or other admins.',
+                              style:
+                                  Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.55),
+                                      ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: profileState.isSaving
+                                ? null
+                                : () => _showAddMemberDialog(context, ref),
+                            icon: const Icon(Icons.person_add_alt_1, size: 18),
+                            label: const Text('Add'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (profileState.profile?.members.isEmpty ?? true)
+                        Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(
                             'No team members yet.',
@@ -121,11 +147,14 @@ class SettingsScreen extends HookConsumerWidget {
                                     ),
                           ),
                         )
-                      : Column(
+                      else
+                        Column(
                           children: (profileState.profile?.members ?? [])
                               .map((member) => _TeamMemberTile(member: member))
                               .toList(),
                         ),
+                    ],
+                  ),
                 ),
                 _SettingsSection(
                   title: 'Account',
@@ -203,6 +232,138 @@ class SettingsScreen extends HookConsumerWidget {
       if (context.mounted) {
         context.replace(AppRoutes.login);
       }
+    }
+  }
+
+  Future<void> _showAddMemberDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    var role = 'recruiter';
+    var errorMessage = '';
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Add team member'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (errorMessage.isNotEmpty) ...[
+                    Text(
+                      errorMessage,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: nameCtrl,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Full name',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.mail_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passwordCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Temporary password',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    decoration: const InputDecoration(
+                      labelText: 'Role',
+                      prefixIcon: Icon(Icons.admin_panel_settings_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'recruiter',
+                        child: Text('Recruiter'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'admin',
+                        child: Text('Admin'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => role = value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  final email = emailCtrl.text.trim();
+                  final password = passwordCtrl.text;
+                  if (name.isEmpty ||
+                      !email.contains('@') ||
+                      password.length < 8) {
+                    setState(() {
+                      errorMessage =
+                          'Enter a name, valid email, and 8+ character password.';
+                    });
+                    return;
+                  }
+
+                  final success = await ref
+                      .read(companyProfileNotifierProvider.notifier)
+                      .createMember(
+                        name: name,
+                        email: email,
+                        role: role,
+                        password: password,
+                      );
+
+                  if (success && dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  } else {
+                    final message = ref
+                            .read(companyProfileNotifierProvider)
+                            .errorMessage ??
+                        'Could not add team member.';
+                    setState(() => errorMessage = message);
+                  }
+                },
+                child: const Text('Add member'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      nameCtrl.dispose();
+      emailCtrl.dispose();
+      passwordCtrl.dispose();
     }
   }
 }

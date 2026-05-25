@@ -89,6 +89,25 @@ class SettingsRemoteDataSource {
     }
   }
 
+  Future<Map<String, dynamic>> createTeamMember({
+    required String name,
+    required String email,
+    required String role,
+    required String password,
+  }) async {
+    final response = await _dio.post(
+      ApiConstants.teamMembers,
+      data: {
+        'name': name,
+        'email': email,
+        'role': role,
+        'password': password,
+      },
+    );
+
+    return _asMap(response.data);
+  }
+
   Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) {
       return value;
@@ -276,6 +295,72 @@ class CompanyProfileNotifier extends _$CompanyProfileNotifier {
 
     return false;
   }
+
+  Future<bool> createMember({
+    required String name,
+    required String email,
+    required String role,
+    required String password,
+  }) async {
+    state = state.copyWith(
+      isSaving: true,
+      errorMessage: null,
+      successMessage: null,
+      fieldErrors: null,
+    );
+
+    final dataSource = ref.read(settingsRemoteDataSourceProvider);
+
+    try {
+      final response = await dataSource.createTeamMember(
+        name: name,
+        email: email,
+        role: role,
+        password: password,
+      );
+      final payload = _extractPayload(response);
+      final rawMembers = payload['members'];
+      final members = rawMembers is List
+          ? rawMembers.map((member) => _toMap(member)).toList()
+          : await dataSource.getTeamMembers();
+      final currentProfile = state.profile;
+
+      state = state.copyWith(
+        isSaving: false,
+        profile: currentProfile == null
+            ? null
+            : currentProfile.copyWith(
+                members: _extractMembers(payload, members),
+              ),
+        successMessage: 'Team member added successfully.',
+      );
+
+      return true;
+    } on AppException catch (e) {
+      state = state.copyWith(
+        isSaving: false,
+        errorMessage: e.message,
+        fieldErrors: _extractFieldErrors(e.data),
+      );
+    } on Object catch (e) {
+      final appException = extractAppException(e);
+      if (appException != null) {
+        state = state.copyWith(
+          isSaving: false,
+          errorMessage: appException.message,
+          fieldErrors: _extractFieldErrors(appException.data),
+        );
+        return false;
+      }
+      state = state.copyWith(
+        isSaving: false,
+        errorMessage: 'Failed to add team member.',
+      );
+    }
+
+    return false;
+  }
+
 
   void clearMessages() {
     state = state.copyWith(

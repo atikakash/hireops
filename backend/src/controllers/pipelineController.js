@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { DEFAULT_STAGES, getStages, seedPipelineStages } = require('../helpers/pipelineHelper');
+const { notifyStageMoved } = require('../services/emailService');
 const {
   toCandidateResponse,
   stageToStatus,
@@ -66,6 +67,20 @@ async function moveCandidate(req, res) {
   const status = stageToStatus(stage);
 
   try {
+    const [candidateRows] = await db.query(
+      `SELECT id, name
+       FROM candidates
+       WHERE id = ? AND company_id = ? AND deleted_at IS NULL
+       LIMIT 1`,
+      [req.params.id, req.user.companyId]
+    );
+    if (!candidateRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found.',
+      });
+    }
+
     const [result] = await db.query(
       `UPDATE candidates
        SET status = ?, updated_at = NOW()
@@ -89,6 +104,16 @@ async function moveCandidate(req, res) {
         `Candidate moved to ${stage || 'applied'}`,
       ]
     );
+
+    notifyStageMoved({
+      db,
+      companyId: req.user.companyId,
+      candidateName: candidateRows[0].name,
+      jobTitle: 'General pipeline',
+      fromStage: null,
+      toStage: stage || 'applied',
+      movedByName: req.user.name || 'A team member',
+    }).catch((err) => console.error('notifyStageMoved error:', err));
 
     return res.json({
       success: true,
