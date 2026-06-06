@@ -10,7 +10,7 @@ abstract interface class DashboardRemoteDataSource {
 }
 
 class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
-  static const _dashboardTimeout = Duration(seconds: 20);
+  static const _dashboardTimeout = Duration(seconds: 90);
 
   final DioClient _dioClient;
 
@@ -21,7 +21,13 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   @override
   Future<DashboardStatsModel> getStats() async {
     final response = await _dio
-        .get(ApiConstants.dashboardStats)
+        .get(
+          ApiConstants.dashboardStats,
+          options: Options(
+            connectTimeout: _dashboardTimeout,
+            receiveTimeout: _dashboardTimeout,
+          ),
+        )
         .timeout(_dashboardTimeout, onTimeout: _dashboardTimeoutError);
     return DashboardStatsModel.fromJson(_extractStatsMap(response.data));
   }
@@ -29,7 +35,13 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   @override
   Future<List<RecentActivityModel>> getRecentActivity() async {
     final response = await _dio
-        .get(ApiConstants.recentActivity)
+        .get(
+          ApiConstants.recentActivity,
+          options: Options(
+            connectTimeout: _dashboardTimeout,
+            receiveTimeout: _dashboardTimeout,
+          ),
+        )
         .timeout(_dashboardTimeout, onTimeout: _dashboardTimeoutError);
     return _extractActivityList(response.data)
         .map(RecentActivityModel.fromJson)

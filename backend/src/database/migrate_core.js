@@ -120,6 +120,19 @@ async function migrateCore() {
     `);
     console.log('OK activity_logs table ready');
 
+    for (const statement of [
+      'CREATE INDEX idx_candidates_company_deleted_created ON candidates(company_id, deleted_at, created_at)',
+      'CREATE INDEX idx_jobs_company_deleted_open ON jobs(company_id, deleted_at, is_open)',
+    ]) {
+      try {
+        await conn.query(statement);
+      } catch (err) {
+        if (err.code !== 'ER_DUP_KEYNAME') {
+          throw err;
+        }
+      }
+    }
+
     await conn.query(`
       CREATE TABLE IF NOT EXISTS candidate_notes (
         id            INT AUTO_INCREMENT PRIMARY KEY,

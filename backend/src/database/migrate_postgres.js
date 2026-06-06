@@ -116,6 +116,16 @@ async function migratePostgres() {
     `);
 
     await conn.query(`
+      CREATE INDEX IF NOT EXISTS idx_candidates_company_deleted_created
+      ON candidates(company_id, deleted_at, created_at)
+    `);
+
+    await conn.query(`
+      CREATE INDEX IF NOT EXISTS idx_jobs_company_deleted_open
+      ON jobs(company_id, deleted_at, is_open)
+    `);
+
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS candidate_notes (
         id            SERIAL PRIMARY KEY,
         company_id    INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

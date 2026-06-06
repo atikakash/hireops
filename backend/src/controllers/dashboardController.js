@@ -18,7 +18,7 @@ const getDashboard = async (req, res) => {
 
 const getDashboardStats = async (req, res) => {
   try {
-    const data = await loadDashboardData(req.user.companyId);
+    const data = await loadDashboardStats(req.user.companyId);
     return res.json({
       success: true,
       data: {
@@ -46,11 +46,11 @@ const getDashboardStats = async (req, res) => {
 
 const getRecentActivity = async (req, res) => {
   try {
-    const data = await loadDashboardData(req.user.companyId);
+    const activities = await loadRecentActivity(req.user.companyId);
     return res.json({
       success: true,
       data: {
-        activities: data.recent_activity,
+        activities,
       },
     });
   } catch (err) {
@@ -61,6 +61,107 @@ const getRecentActivity = async (req, res) => {
     });
   }
 };
+
+async function loadDashboardStats(companyId) {
+  const addedTodaySql = db.isPostgres
+    ? "SUM(CASE WHEN DATE(created_at) = CURRENT_DATE THEN 1 ELSE 0 END) AS added_today"
+    : 'SUM(DATE(created_at) = CURDATE()) AS added_today';
+  const addedWeekSql = db.isPostgres
+    ? "SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END) AS added_this_week"
+    : 'SUM(created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) AS added_this_week';
+
+  const [
+    [candidateStats],
+    [jobStats],
+    [stageStats],
+    recentActivity,
+  ] = await Promise.all([
+    db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) AS new_count,
+         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count,
+         SUM(CASE WHEN status = 'hired' THEN 1 ELSE 0 END) AS hired_count,
+         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected_count,
+         ${addedTodaySql},
+         ${addedWeekSql}
+       FROM candidates
+       WHERE company_id = ? AND deleted_at IS NULL`,
+      [companyId]
+    ),
+    db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN is_open = 1 THEN 1 ELSE 0 END) AS open_count,
+         SUM(CASE WHEN is_open = 0 THEN 1 ELSE 0 END) AS closed_count
+       FROM jobs
+       WHERE company_id = ? AND deleted_at IS NULL`,
+      [companyId]
+    ),
+    db.query(
+      `SELECT
+         ps.id,
+         ps.name,
+         ps.color,
+         ps.order_index,
+         COUNT(jc.id) AS candidate_count
+       FROM pipeline_stages ps
+       LEFT JOIN job_candidates jc
+         ON jc.stage_id = ps.id
+        AND jc.company_id = ps.company_id
+       WHERE ps.company_id = ?
+       GROUP BY ps.id, ps.name, ps.color, ps.order_index
+       ORDER BY ps.order_index ASC`,
+      [companyId]
+    ),
+    loadRecentActivity(companyId),
+  ]);
+
+  return {
+    candidates: {
+      total: toNumber(candidateStats[0].total),
+      new: toNumber(candidateStats[0].new_count),
+      active: toNumber(candidateStats[0].active_count),
+      hired: toNumber(candidateStats[0].hired_count),
+      rejected: toNumber(candidateStats[0].rejected_count),
+      added_today: toNumber(candidateStats[0].added_today),
+      added_this_week: toNumber(candidateStats[0].added_this_week),
+    },
+    jobs: {
+      total: toNumber(jobStats[0].total),
+      open: toNumber(jobStats[0].open_count),
+      closed: toNumber(jobStats[0].closed_count),
+    },
+    pipeline_stages: stageStats.map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      color: stage.color,
+      order_index: stage.order_index,
+      candidate_count: toNumber(stage.candidate_count),
+    })),
+    recent_activity: recentActivity,
+  };
+}
+
+async function loadRecentActivity(companyId) {
+  const [rows] = await db.query(
+    `SELECT
+       al.id,
+       al.entity_type,
+       al.action,
+       al.description,
+       al.created_at,
+       u.name AS user_name
+     FROM activity_logs al
+     LEFT JOIN users u ON u.id = al.user_id
+     WHERE al.company_id = ?
+     ORDER BY al.created_at DESC
+     LIMIT 10`,
+    [companyId]
+  );
+
+  return rows.map(toRecentActivityItem);
+}
 
 async function loadDashboardData(companyId) {
   const addedTodaySql = db.isPostgres
