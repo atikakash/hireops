@@ -12,7 +12,10 @@ part 'dashboard_providers.g.dart';
 
 @riverpod
 DashboardRemoteDataSource dashboardRemoteDataSource(Ref ref) =>
-    DashboardRemoteDataSourceImpl(ref.watch(dioClientProvider));
+    DashboardRemoteDataSourceImpl(
+      ref.watch(dioClientProvider),
+      ref.watch(appConfigStorageProvider),
+    );
 
 @riverpod
 DashboardRepository dashboardRepository(Ref ref) =>

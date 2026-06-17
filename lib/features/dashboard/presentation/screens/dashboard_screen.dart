@@ -128,7 +128,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       statsAsync.when(
-                        loading: () => const _StatsShimmer(),
+                        loading: () => const _StatsLoadingState(),
                         error: (e, _) => ErrorState(
                           message: e.toString(),
                           onRetry: () => ref.invalidate(dashboardStatsProvider),
@@ -525,6 +525,72 @@ class _StatsShimmer extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           children: List.generate(4, (_) => const ShimmerStatCard()),
         ),
+      ],
+    );
+  }
+}
+
+class _StatsLoadingState extends StatefulWidget {
+  const _StatsLoadingState();
+
+  @override
+  State<_StatsLoadingState> createState() => _StatsLoadingStateState();
+}
+
+class _StatsLoadingStateState extends State<_StatsLoadingState> {
+  bool _showColdStartHint = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(seconds: 7), () {
+      if (mounted) {
+        setState(() => _showColdStartHint = true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _StatsShimmer(),
+        if (_showColdStartHint) ...[
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Starting the server. This can take a moment after the app was closed.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.68),
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

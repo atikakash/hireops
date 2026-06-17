@@ -15,6 +15,8 @@ abstract class PlatformAppConfigStore {
 
 class AppConfigStorage {
   static const _kApiBaseUrl = 'api_base_url';
+  static const _kDashboardStats = 'dashboard_stats_cache';
+  static const _kDashboardActivity = 'dashboard_activity_cache';
 
   final PlatformAppConfigStore _store;
 
@@ -37,5 +39,21 @@ class AppConfigStorage {
 
   Future<void> clearApiBaseUrl() {
     return _store.delete(key: _kApiBaseUrl);
+  }
+
+  Future<void> saveDashboardStats(String value) {
+    return _store.write(key: _kDashboardStats, value: value);
+  }
+
+  Future<String?> getDashboardStats() {
+    return _store.read(key: _kDashboardStats);
+  }
+
+  Future<void> saveDashboardActivity(String value) {
+    return _store.write(key: _kDashboardActivity, value: value);
+  }
+
+  Future<String?> getDashboardActivity() {
+    return _store.read(key: _kDashboardActivity);
   }
 }
