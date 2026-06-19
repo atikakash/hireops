@@ -120,6 +120,26 @@ async function migrateCore() {
     `);
     console.log('OK activity_logs table ready');
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS pending_registrations (
+        email       VARCHAR(255) PRIMARY KEY,
+        payload     TEXT NOT NULL,
+        expires_at  TIMESTAMP NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS auth_otps (
+        email       VARCHAR(255) NOT NULL,
+        purpose     VARCHAR(40) NOT NULL,
+        otp_hash    VARCHAR(128) NOT NULL,
+        expires_at  TIMESTAMP NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (email, purpose)
+      )
+    `);
+
     for (const statement of [
       'CREATE INDEX idx_candidates_company_deleted_created ON candidates(company_id, deleted_at, created_at)',
       'CREATE INDEX idx_jobs_company_deleted_open ON jobs(company_id, deleted_at, is_open)',

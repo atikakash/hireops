@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const crypto = require('crypto');
 
 const db = require('../config/database');
 const { seedPipelineStages } = require('../helpers/pipelineHelper');
@@ -7,13 +8,6 @@ const {
   issueSession,
   rotateRefreshToken,
   revokeAccessToken,
-  savePasswordResetOtp,
-  consumePasswordResetOtp,
-  saveEmailVerificationOtp,
-  consumeEmailVerificationOtp,
-  savePendingRegistration,
-  getPendingRegistration,
-  consumePendingRegistration,
 } = require('../auth/sessionStore');
 const {
   sendEmailVerificationOtp,
@@ -141,7 +135,7 @@ async function register(req, res) {
       });
     }
 
-    savePendingRegistration(normalizedUserEmail, {
+    await savePendingRegistration(normalizedUserEmail, {
       name: value.name.trim(),
       email: normalizedUserEmail,
       password: value.password,
@@ -182,7 +176,7 @@ async function verifyEmail(req, res) {
     return validationFailed(res, error);
   }
 
-  if (!consumeEmailVerificationOtp(value.email, value.otp)) {
+  if (!(await consumeOtp(value.email, 'email_verification', value.otp))) {
     return res.status(422).json({
       success: false,
       message: 'Invalid or expired verification code.',
@@ -193,7 +187,7 @@ async function verifyEmail(req, res) {
   }
 
   try {
-    const pendingRegistration = consumePendingRegistration(value.email);
+    const pendingRegistration = await consumePendingRegistration(value.email);
     if (pendingRegistration) {
       const authUser = await createVerifiedAccount(pendingRegistration);
       return res.json(buildAuthPayload(authUser));
@@ -247,7 +241,7 @@ async function resendVerification(req, res) {
   }
 
   try {
-    const pendingRegistration = getPendingRegistration(value.email);
+    const pendingRegistration = await getPendingRegistration(value.email);
     if (pendingRegistration) {
       const otpResult = await issueEmailVerificationOtp({
         email: pendingRegistration.email,
@@ -322,7 +316,7 @@ async function forgotPassword(req, res) {
     }
 
     const otp = createOtp();
-    savePasswordResetOtp(rows[0].email, otp);
+    await saveOtp(rows[0].email, 'password_reset', otp);
     const sent = await withTimeout(
       sendPasswordResetOtp({
         to: rows[0].email,
@@ -356,7 +350,7 @@ async function resetPassword(req, res) {
   }
 
   try {
-    const consumed = consumePasswordResetOtp(value.email, value.otp);
+    const consumed = await consumeOtp(value.email, 'password_reset', value.otp);
     if (!consumed) {
       return res.status(422).json({
         success: false,
@@ -536,13 +530,133 @@ async function deleteUnverifiedAccount(user) {
 
 async function issueEmailVerificationOtp({ email, name }) {
   const otp = createOtp();
-  saveEmailVerificationOtp(email, otp);
+  await saveOtp(email, 'email_verification', otp);
   const sent = await withTimeout(
     sendEmailVerificationOtp({ to: email, name, otp }),
     Number(process.env.MAIL_TIMEOUT_MS || 5000),
     false
   );
   return { sent, debugOtp: sent ? null : otp };
+}
+
+async function savePendingRegistration(email, registration) {
+  const payload = JSON.stringify(registration);
+
+  if (db.isPostgres) {
+    await db.query(
+      `INSERT INTO pending_registrations (email, payload, expires_at)
+       VALUES (?, ?, NOW() + INTERVAL '10 minutes')
+       ON CONFLICT (email) DO UPDATE SET
+         payload = EXCLUDED.payload,
+         expires_at = EXCLUDED.expires_at,
+         created_at = CURRENT_TIMESTAMP
+       RETURNING email`,
+      [email.toLowerCase(), payload]
+    );
+    return;
+  }
+
+  await db.query(
+    `INSERT INTO pending_registrations (email, payload, expires_at)
+     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))
+     ON DUPLICATE KEY UPDATE
+       payload = VALUES(payload),
+       expires_at = VALUES(expires_at),
+       created_at = CURRENT_TIMESTAMP`,
+    [email.toLowerCase(), payload]
+  );
+}
+
+async function getPendingRegistration(email) {
+  const normalizedEmail = email.toLowerCase();
+  const [rows] = await db.query(
+    `SELECT payload, expires_at > NOW() AS is_valid
+     FROM pending_registrations
+     WHERE email = ?
+     LIMIT 1`,
+    [normalizedEmail]
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  if (!toBoolean(rows[0].is_valid)) {
+    await db.query('DELETE FROM pending_registrations WHERE email = ?', [
+      normalizedEmail,
+    ]);
+    return null;
+  }
+
+  return JSON.parse(rows[0].payload);
+}
+
+async function consumePendingRegistration(email) {
+  const normalizedEmail = email.toLowerCase();
+  const registration = await getPendingRegistration(normalizedEmail);
+  await db.query('DELETE FROM pending_registrations WHERE email = ?', [
+    normalizedEmail,
+  ]);
+  return registration;
+}
+
+async function saveOtp(email, purpose, otp) {
+  const normalizedEmail = email.toLowerCase();
+  const otpHash = hashOtp(otp);
+
+  if (db.isPostgres) {
+    await db.query(
+      `INSERT INTO auth_otps (email, purpose, otp_hash, expires_at)
+       VALUES (?, ?, ?, NOW() + INTERVAL '10 minutes')
+       ON CONFLICT (email, purpose) DO UPDATE SET
+         otp_hash = EXCLUDED.otp_hash,
+         expires_at = EXCLUDED.expires_at,
+         created_at = CURRENT_TIMESTAMP
+       RETURNING email`,
+      [normalizedEmail, purpose, otpHash]
+    );
+    return;
+  }
+
+  await db.query(
+    `INSERT INTO auth_otps (email, purpose, otp_hash, expires_at)
+     VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))
+     ON DUPLICATE KEY UPDATE
+       otp_hash = VALUES(otp_hash),
+       expires_at = VALUES(expires_at),
+       created_at = CURRENT_TIMESTAMP`,
+    [normalizedEmail, purpose, otpHash]
+  );
+}
+
+async function consumeOtp(email, purpose, otp) {
+  const normalizedEmail = email.toLowerCase();
+  const [rows] = await db.query(
+    `SELECT otp_hash, expires_at > NOW() AS is_valid
+     FROM auth_otps
+     WHERE email = ? AND purpose = ?
+     LIMIT 1`,
+    [normalizedEmail, purpose]
+  );
+
+  if (!rows.length) {
+    return false;
+  }
+
+  await db.query('DELETE FROM auth_otps WHERE email = ? AND purpose = ?', [
+    normalizedEmail,
+    purpose,
+  ]);
+
+  return toBoolean(rows[0].is_valid) && hashOtp(otp) === rows[0].otp_hash;
+}
+
+function hashOtp(otp) {
+  return crypto.createHash('sha256').update(String(otp)).digest('hex');
+}
+
+function toBoolean(value) {
+  return value === true || value === 1 || value === '1' || value === 't';
 }
 
 function withTimeout(promise, timeoutMs, fallbackValue) {
